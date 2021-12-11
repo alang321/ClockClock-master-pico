@@ -3,18 +3,33 @@ import machine
 
 class ClockModule: # module for 1 of the 6 pcbs in the clock
     cmd_id = {
-      "set_speed": 0,
-      "set_accel": 1,
-      "moveTo": 2,
-      "move": 3,
-      "stop": 4,
-      "falling_pointer": 5
+      "enable_driver": 0,
+      "set_speed": 1,
+      "set_accel": 2,
+      "moveTo": 3,
+      "move": 4,
+      "stop": 5,
+      "falling_pointer": 6
     }
     
     def __init__(self, i2c_bus: machine.I2C, i2c_address: int):
         self.i2c_bus = i2c_bus
         self.i2c_address = i2c_address
         self.sub_stepper_id = -1 # so it addresses all steppers
+        self.is_driver_enabled = True
+        
+    def enable_disable_driver_module(self, enable_disable: bool):
+        """
+        true to enable driver of module
+        false to disable
+        """
+        buffer = pack("<Bc", self.cmd_id["enable_driver"], enable_disable) #cmd_id uint8, enable char           
+        
+        try:
+            self.i2c_bus.writeto(self.i2c_address, buffer)
+            self.is_driver_enabled = enable_disable
+        except:
+            print("Slave not found:", self.i2c_address)
         
     def set_speed_module(self, speed: int):
         buffer = pack("<BHb", self.cmd_id["set_speed"], speed, self.sub_stepper_id) #cmd_id uint8, speed uint16, stepper_id int8           

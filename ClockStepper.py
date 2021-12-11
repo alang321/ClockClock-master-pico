@@ -5,12 +5,13 @@ from ClockModule import ClockModule
 
 class ClockStepper:
     cmd_id = {
-      "set_speed": 0,
-      "set_accel": 1,
-      "moveTo": 2,
-      "move": 3,
-      "stop": 4,
-      "falling_pointer": 5
+      "enable_driver": 0,
+      "set_speed": 1,
+      "set_accel": 2,
+      "moveTo": 3,
+      "move": 4,
+      "stop": 5,
+      "falling_pointer": 6
     }
     
     def __init__(self, sub_stepper_id: int, module: ClockModule, steps_per_rev: int, current_target_pos = 0):

@@ -18,6 +18,14 @@ class ClockClock24:
         
     def display_digit(self, index: int, number: int):
         self.digit_displays[index].display(number)
+        
+    def enable_disable_driver(self, enable_disable: bool):
+        """
+        true to enable driver of module
+        false to disable
+        """
+        for module in self.clock_modules:
+            module.enable_disable_driver_module(enable_disable)
     
     def set_speed_all(self, speed: int):
         for module in self.clock_modules:
