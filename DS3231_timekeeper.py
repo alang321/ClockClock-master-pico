@@ -68,14 +68,14 @@ class DS3231_timekeeper:
             # this means the last sunday already happened
             if (31 - datetime.day) < (7 - datetime.weekday): 
                 cest = True
-            elif weekday == 7: # its switchday
+            elif datetime.weekday == 7: # its switchday
                 if datetime.hour >= 2:
                     cest = True
         elif datetime.month == 10 and datetime.day > 24: # (31 - 7)
             cest = True
             if (31 - datetime.day) < (7 - datetime.weekday): # see before
                 cest = False
-            elif weekday == 7: # its switchday
+            elif datetime.weekday == 7: # its switchday
                 if datetime.hour >= 2:
                     cest = False
         else:
