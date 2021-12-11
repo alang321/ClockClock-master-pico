@@ -1,9 +1,7 @@
 from struct import pack
 import machine
-import machine
-from ClockModule import ClockModule
 
-class ClockStepper:
+class ClockModule: # module for 1 of the 6 pcbs in the clock
     cmd_id = {
       "set_speed": 0,
       "set_accel": 1,
@@ -13,15 +11,12 @@ class ClockStepper:
       "falling_pointer": 5
     }
     
-    def __init__(self, sub_stepper_id: int, module: ClockModule, steps_per_rev: int, current_target_pos = 0):
-        self.module = module
-        self.i2c_bus = module.i2c_bus
-        self.i2c_address = module.i2c_address
-        self.sub_stepper_id = sub_stepper_id
-        self.current_target_pos = current_target_pos
-        self.steps_per_rev = steps_per_rev
+    def __init__(self, i2c_bus: machine.I2C, i2c_address: int):
+        self.i2c_bus = i2c_bus
+        self.i2c_address = i2c_address
+        self.sub_stepper_id = -1 # so it addresses all steppers
         
-    def set_speed(self, speed: int):
+    def set_speed_module(self, speed: int):
         buffer = pack("<BHb", self.cmd_id["set_speed"], speed, self.sub_stepper_id) #cmd_id uint8, speed uint16, stepper_id int8           
         
         try:
@@ -29,7 +24,7 @@ class ClockStepper:
         except:
             print("Slave not found:", self.i2c_address)
     
-    def set_accel(self, accel: int):
+    def set_accel_module(self, accel: int):
         buffer = pack("<BHb", self.cmd_id["set_accel"], accel, self.sub_stepper_id) #cmd_id uint8, accel uint16, stepper_id int8           
         
         try:
@@ -37,7 +32,7 @@ class ClockStepper:
         except:
             print("Slave not found:", self.i2c_address)
     
-    def move_to(self, position: int, direction: int):
+    def move_to_module(self, position: int, direction: int):
         buffer = pack("<BHbb", self.cmd_id["moveTo"], position, direction, self.sub_stepper_id) #cmd_id uint8, position uint16, dir int8, stepper_id int8           
         
         try:
@@ -46,7 +41,7 @@ class ClockStepper:
         except:
             print("Slave not found:", self.i2c_address)
     
-    def move(self, distance: int, direction: int):
+    def move_module(self, distance: int, direction: int):
         buffer = pack("<BHbb", self.cmd_id["move"], distance, direction, self.sub_stepper_id) #cmd_id uint8, distance uint16, dir int8, stepper_id int8           
         
         try:
@@ -58,29 +53,27 @@ class ClockStepper:
         except:
             print("Slave not found:", self.i2c_address)
         
-    def stop(self):
-        buffer = pack("<Bb", self.cmd_id["stop"], self.sub_stepper_id) #cmd_id uint8, stepper_id int8     
+    def stop_module(self):
+        buffer = pack("<Bb", self.cmd_id["stop"], self.sub_stepper_id) #cmd_id uint8, stepper_id int8           
         
         try:
-            self.i2c_bus.writeto(self.i2c_address, buffer)      
-            self.current_target_pos = -1
+            self.i2c_bus.writeto(self.i2c_address, buffer)
         except:
             print("Slave not found:", self.i2c_address)
     
-    def falling_pointer(self):
-        buffer = pack("<Bb", self.cmd_id["falling_pointer"], self.sub_stepper_id) #cmd_id uint8, stepper_id int8   
+    def falling_pointer_module(self):
+        buffer = pack("<Bb", self.cmd_id["falling_pointer"], self.sub_stepper_id) #cmd_id uint8, stepper_id int8           
         
         try:
-            self.i2c_bus.writeto(self.i2c_address, buffer)          
-            self.current_target_pos = int(0.5 * self.steps_per_rev)   
+            self.i2c_bus.writeto(self.i2c_address, buffer)
         except:
             print("Slave not found:", self.i2c_address)
     
-    def is_running(self) -> bool: #returns True if stepper is running
+    def is_running_module(self) -> bool: #returns True if stepper is running
         try:
             buffer = self.i2c_bus.readfrom(self.i2c_address, 1)
             
-            return ((1 << self.sub_stepper_id) & buffer[0] != 0)
+            return (buffer[0] != 0)
         except:
             print("Slave not found:", self.i2c_address)
             return False

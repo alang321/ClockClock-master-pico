@@ -16,15 +16,14 @@ class DigitDisplay:
     
     digits_pointer_pos_abs = []
         
-    def __init__(self, stepper_list_minute, stepper_list_hour):
+    def __init__(self, stepper_list_minute, stepper_list_hour, steps_full_rev = 4320):
         self.stepper_list_hour = stepper_list_hour
         self.stepper_list_minute = stepper_list_minute
         
-    @staticmethod
-    def initialize(steps_full_rev: int):
-        DigitDisplay.digits_pointer_pos_abs = [[[int(frac * steps_full_rev) for frac in hour_minute] for hour_minute in number] for number in DigitDisplay.digits_pointer_pos_frac]
-        
-    def display_digit(self, number: int):
+        if not DigitDisplay.digits_pointer_pos_abs:
+            DigitDisplay.digits_pointer_pos_abs = [[[int(frac * steps_full_rev) for frac in hour_minute] for hour_minute in number] for number in DigitDisplay.digits_pointer_pos_frac]  
+
+    def display(self, number: int):
         for clk_index in range(len(self.stepper_list_hour)):
             self.stepper_list_hour[clk_index].move_to(DigitDisplay.digits_pointer_pos_abs[number][0][clk_index], 0)
             self.stepper_list_minute[clk_index].move_to(DigitDisplay.digits_pointer_pos_abs[number][1][clk_index], 0)
