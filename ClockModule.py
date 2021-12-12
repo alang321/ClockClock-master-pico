@@ -23,7 +23,7 @@ class ClockModule: # module for 1 of the 6 pcbs in the clock
         true to enable driver of module
         false to disable
         """
-        buffer = pack("<Bc", self.cmd_id["enable_driver"], enable_disable) #cmd_id uint8, enable char           
+        buffer = pack("<BB", self.cmd_id["enable_driver"], int(enable_disable)) #cmd_id uint8, enable uint8         
         
         try:
             self.i2c_bus.writeto(self.i2c_address, buffer)
