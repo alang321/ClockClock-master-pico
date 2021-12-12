@@ -10,10 +10,10 @@ def new_minute_handler():
     
     hour, minute = rtc.get_hour_minute()
     
-    clockclock.display_digit(0, hour//10)
-    clockclock.display_digit(1, hour%10)
-    clockclock.display_digit(2, minute//10)
-    clockclock.display_digit(3, minute%10)
+    clockclock.display_digit(0, hour//10, 1, 3)
+    clockclock.display_digit(1, hour%10, -1, 3)
+    clockclock.display_digit(2, minute//10, 1, 3)
+    clockclock.display_digit(3, minute%10, -1, 3)
 
 stepper_speed = 700
 stepper_accel = 300

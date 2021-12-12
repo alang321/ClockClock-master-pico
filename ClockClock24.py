@@ -16,8 +16,8 @@ class ClockClock24:
         
         self.digit_displays = [DigitDisplay([self.minute_steppers[i] for i in clk_index_list], [self.hour_steppers[i] for i in clk_index_list], steps_full_rev) for clk_index_list in ClockClock24.digit_display_indeces]
         
-    def display_digit(self, index: int, number: int):
-        self.digit_displays[index].display(number)
+    def display_digit(self, index: int, number: int, direction = 0, extra_revs = 0):
+        self.digit_displays[index].display(number, direction, extra_revs)
         
     def enable_disable_driver(self, enable_disable: bool):
         """

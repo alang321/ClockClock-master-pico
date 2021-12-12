@@ -23,8 +23,14 @@ class DigitDisplay:
         if not DigitDisplay.digits_pointer_pos_abs:
             DigitDisplay.digits_pointer_pos_abs = [[[int(frac * steps_full_rev) for frac in hour_minute] for hour_minute in number] for number in DigitDisplay.digits_pointer_pos_frac]  
 
-    def display(self, number: int):
-        for clk_index in range(len(self.stepper_list_hour)):
-            self.stepper_list_hour[clk_index].move_to(DigitDisplay.digits_pointer_pos_abs[number][0][clk_index], 0)
-            self.stepper_list_minute[clk_index].move_to(DigitDisplay.digits_pointer_pos_abs[number][1][clk_index], 0)
+    def display(self, number: int, direction: int, extra_revs = 0):
+        if extra_revs == 0 or direction == 0:
+            for clk_index in range(len(self.stepper_list_hour)):
+                self.stepper_list_hour[clk_index].move_to(DigitDisplay.digits_pointer_pos_abs[number][0][clk_index], direction)
+                self.stepper_list_minute[clk_index].move_to(DigitDisplay.digits_pointer_pos_abs[number][1][clk_index], direction)
+        else:
+            for clk_index in range(len(self.stepper_list_hour)):
+                self.stepper_list_hour[clk_index].move_to_extra_revs(DigitDisplay.digits_pointer_pos_abs[number][0][clk_index], direction, extra_revs)
+                self.stepper_list_minute[clk_index].move_to_extra_revs(DigitDisplay.digits_pointer_pos_abs[number][1][clk_index], direction, extra_revs)
+            
     
