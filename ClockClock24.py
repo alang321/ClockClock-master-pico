@@ -39,6 +39,10 @@ class ClockClock24:
         for module in self.clock_modules:
             module.move_to_module(position, direction)
     
+    def move_to_extra_revs_all(self, position: int, direction: int, extra_revs: int):
+        for module in self.clock_modules:
+            module.move_to_extra_revs_module(position, direction, extra_revs)
+    
     def move_all(self, distance: int, direction: int):
         for module in self.clock_modules:
             module.move_module(distance, direction)

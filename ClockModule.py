@@ -7,9 +7,10 @@ class ClockModule: # module for 1 of the 6 pcbs in the clock
       "set_speed": 1,
       "set_accel": 2,
       "moveTo": 3,
-      "move": 4,
-      "stop": 5,
-      "falling_pointer": 6
+      "moveTo_extra_revs": 4,
+      "move": 5,
+      "stop": 6,
+      "falling_pointer": 7
     }
     
     def __init__(self, i2c_bus: machine.I2C, i2c_address: int):
@@ -52,7 +53,14 @@ class ClockModule: # module for 1 of the 6 pcbs in the clock
         
         try:
             self.i2c_bus.writeto(self.i2c_address, buffer)
-            self.current_target_pos = position;
+        except:
+            print("Slave not found:", self.i2c_address)
+    
+    def move_to_extra_revs_module(self, position: int, direction: int, extra_revs: int):
+        buffer = pack("<BHbBb", self.cmd_id["moveTo_extra_revs"], position, direction, extra_revs, self.sub_stepper_id) #cmd_id uint8, position uint16, dir int8, extra_revs uint8, stepper_id int8           
+        
+        try:
+            self.i2c_bus.writeto(self.i2c_address, buffer)
         except:
             print("Slave not found:", self.i2c_address)
     
@@ -61,10 +69,6 @@ class ClockModule: # module for 1 of the 6 pcbs in the clock
         
         try:
             self.i2c_bus.writeto(self.i2c_address, buffer)
-            
-            relative = (distance * direction) % self.steps_per_rev
-            
-            self.current_target_pos = (self.steps_per_rev + self.current_target_pos + relative) % self.steps_per_rev
         except:
             print("Slave not found:", self.i2c_address)
         
