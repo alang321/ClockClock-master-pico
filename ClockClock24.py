@@ -127,7 +127,7 @@ class ClockClock24:
             stepper.move_to(int(self.steps_full_rev/60 * minute), 0)
             
         for stepper in self.hour_steppers:
-            stepper.move_to(int(self.steps_full_rev/12 * (hour%12 + minute/(60*12))), 0)
+            stepper.move_to(int(self.steps_full_rev/12 * (hour%12 + minute/60)), 0)
         
     #commands
     def enable_disable_driver(self, enable_disable: bool):
