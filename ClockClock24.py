@@ -8,8 +8,8 @@ class ClockClock24:
     stepper_speed_default = 600
     stepper_accel_default = 250
     
-    stepper_speed_stealth = 300
-    stepper_accel_stealth = 100
+    stepper_speed_stealth = 150
+    stepper_accel_stealth = 70
     
     stepper_speed_analog = 70
     stepper_accel_analog = 50
@@ -44,6 +44,9 @@ class ClockClock24:
         self.__current_mode = mode
         self.time_handler = self.time_change_handlers[self.__current_mode]
         self.mode_change_handlers[self.__current_mode](True) # specific initialisation of new mode
+        
+    def get_mode(self):
+        return self.__current_mode
     
     def display_digit(self, field: int, number: int, direction = 0, extra_revs = 0):
         self.digit_display.display_digit(field, number, direction, extra_revs)
@@ -53,6 +56,9 @@ class ClockClock24:
         
     def __sleep(self, start: bool):
         if start:
+            self.set_speed_all(ClockClock24.stepper_speed_default)
+            self.set_accel_all(ClockClock24.stepper_speed_default)
+            
             self.move_to_all(int(0.5*self.steps_full_rev))
             
             time.sleep(0.2) # just to be sure all slaves had time to start moving, probably not needed but doesnt hurt
