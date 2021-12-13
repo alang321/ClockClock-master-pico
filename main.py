@@ -26,16 +26,21 @@ slave_bus = [i2c1, i2c0, # the bus the clock is on
 
 time.sleep(10) #wait so clock modules have time to setup
 
-clockclock = ClockClock24(slave_adr, slave_bus, ClockClock24.modes["analog"], 4320)
+clockclock = ClockClock24(slave_adr, slave_bus, ClockClock24.modes["stealth"], 4320)
 
 rtc = DS3231_timekeeper(new_minute_handler, 13, i2c1)
 
 button = machine.Pin(26, machine.Pin.IN, machine.Pin.PULL_UP)
+
+is_pressed = False
+
 while True:
-    if button.value() == 0:
-        print("Sent to sleep")
+    if button.value() == 0 and not is_pressed:
+        is_pressed = True
+        print("Change Mode")
         curr_mode = clockclock.get_mode()
-        clockclock.set_mode(ClockClock24.modes["sleep"])
-        time.sleep(120)
-        clockclock.set_mode(curr_mode)
+        clockclock.set_mode((curr_mode + 1) % len(ClockClock24.modes))
+        time.sleep(0.2)
+    else:
+        is_pressed = False
     continue

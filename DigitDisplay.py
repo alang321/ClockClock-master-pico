@@ -99,8 +99,8 @@ class DigitDisplay:
         """
         for field, digit in enumerate(digits):
             for sub_index, clk_index in enumerate(self.digit_display_indeces[field]):
-                self.hour_steppers[clk_index].move_to(self.digits_pointer_pos_abs[digit][0][sub_index], direction)
-                self.minute_steppers[clk_index].move_to(self.digits_pointer_pos_abs[digit][1][sub_index], direction)
+                self.hour_steppers[clk_index].move_to(self.digits_pointer_pos_abs[digit][0][sub_index], 0)
+                self.minute_steppers[clk_index].move_to(self.digits_pointer_pos_abs[digit][1][sub_index], 0)
         return
     
     def display_digits_stealth(self, digits):
