@@ -24,7 +24,7 @@ slave_bus = [i2c1, i2c0, # the bus the clock is on
              i2c1, i2c0, 
              i2c1, i2c0]
 
-time.sleep(1) #wait so clock modules have time to setup
+time.sleep(10) #wait so clock modules have time to setup
 
 clockclock = ClockClock24(slave_adr, slave_bus, ClockClock24.modes["analog"], 4320)
 

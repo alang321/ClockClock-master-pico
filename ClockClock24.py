@@ -63,7 +63,7 @@ class ClockClock24:
             
             time.sleep(0.2) # just to be sure all slaves had time to start moving, probably not needed but doesnt hurt
             
-            while self.is_running:
+            while self.is_running():
                 time.sleep(0.2)
                 
             self.enable_disable_driver(False)
