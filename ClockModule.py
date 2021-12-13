@@ -1,5 +1,6 @@
 from struct import pack
 import machine
+from ClockStepper import ClockStepper
 
 class ClockModule: # module for 1 of the 6 pcbs in the clock
     cmd_id = {
@@ -13,7 +14,8 @@ class ClockModule: # module for 1 of the 6 pcbs in the clock
       "falling_pointer": 7
     }
     
-    def __init__(self, i2c_bus: machine.I2C, i2c_address: int):
+    def __init__(self, i2c_bus: machine.I2C, i2c_address: int, steps_full_rev: int):
+        self.steps_full_rev = steps_full_rev
         self.i2c_bus = i2c_bus
         self.i2c_address = i2c_address
         self.sub_stepper_id = -1 # so it addresses all steppers
@@ -92,6 +94,9 @@ class ClockModule: # module for 1 of the 6 pcbs in the clock
         
         try:
             self.i2c_bus.writeto(self.i2c_address, buffer)
+            
+            for stepper in self.steppers:
+                stepper.current_target_pos = -1
         except:
             print("Slave not found:", self.i2c_address)
     

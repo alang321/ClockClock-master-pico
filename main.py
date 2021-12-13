@@ -10,13 +10,7 @@ def new_minute_handler():
     
     hour, minute = rtc.get_hour_minute()
     
-    clockclock.display_digit(0, hour//10, 1, 3)
-    clockclock.display_digit(1, hour%10, -1, 3)
-    clockclock.display_digit(2, minute//10, 1, 3)
-    clockclock.display_digit(3, minute%10, -1, 3)
-
-stepper_speed = 700
-stepper_accel = 300
+    clockclock.display_time(hour, minute)
 
 i2c1 = machine.I2C(1,sda=machine.Pin(14), scl=machine.Pin(3), freq=100000)
 i2c0 = machine.I2C(0,sda=machine.Pin(16), scl=machine.Pin(17), freq=100000)
@@ -30,9 +24,9 @@ slave_bus = [i2c1, i2c0, # the bus the clock is on
              i2c1, i2c0, 
              i2c1, i2c0]
 
-clockclock = ClockClock24(slave_adr, slave_bus, 4320)
-
 time.sleep(10) #wait so clock modules have time to setup
+
+clockclock = ClockClock24(slave_adr, slave_bus, ClockClock24.modes["analog"], 4320)
 
 rtc = DS3231_timekeeper(new_minute_handler, 13, i2c1)
 
