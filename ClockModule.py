@@ -18,6 +18,10 @@ class ClockModule: # module for 1 of the 6 pcbs in the clock
         self.i2c_address = i2c_address
         self.sub_stepper_id = -1 # so it addresses all steppers
         self.is_driver_enabled = True
+            
+        self.steppers = [ClockStepper(sub_id, self, self.steps_full_rev) for sub_id in range(8)]
+        self.minute_steppers = self.steppers[:4]
+        self.hour_steppers = self.steppers[4:]
         
     def enable_disable_driver_module(self, enable_disable: bool):
         """
@@ -53,6 +57,9 @@ class ClockModule: # module for 1 of the 6 pcbs in the clock
         
         try:
             self.i2c_bus.writeto(self.i2c_address, buffer)
+            
+            for stepper in self.steppers:
+                stepper.current_target_pos = position
         except:
             print("Slave not found:", self.i2c_address)
     
@@ -61,6 +68,9 @@ class ClockModule: # module for 1 of the 6 pcbs in the clock
         
         try:
             self.i2c_bus.writeto(self.i2c_address, buffer)
+            
+            for stepper in self.steppers:
+                stepper.current_target_pos = position
         except:
             print("Slave not found:", self.i2c_address)
     
@@ -69,6 +79,11 @@ class ClockModule: # module for 1 of the 6 pcbs in the clock
         
         try:
             self.i2c_bus.writeto(self.i2c_address, buffer)
+            
+            for stepper in self.steppers:
+                relative = (distance * direction) % self.steps_per_rev
+            
+                self.current_target_pos = (self.steps_per_rev + self.current_target_pos + relative) % self.steps_per_rev
         except:
             print("Slave not found:", self.i2c_address)
         

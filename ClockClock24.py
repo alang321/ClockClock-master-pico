@@ -11,10 +11,13 @@ class ClockClock24:
         
         self.clock_modules = [ClockModule(i2c_bus_list[module_index], slave_adr_list[module_index]) for module_index in range(len(slave_adr_list))]
         
-        self.minute_steppers = [ClockStepper(clk_id%4, self.clock_modules[clk_id//4], self.steps_full_rev) for clk_id in range(24)]
-        self.hour_steppers = [ClockStepper((clk_id%4 + 4), self.clock_modules[clk_id//4], self.steps_full_rev) for clk_id in range(24)]
+        self.minute_steppers = [stepper for stepper_list in (module.minute_steppers for module in self.clock_modules) for stepper in stepper_list]
+        self.hour_steppers = [stepper for stepper_list in (module.hour_steppers for module in self.clock_modules) for stepper in stepper_list]
         
         self.digit_displays = [DigitDisplay([self.minute_steppers[i] for i in clk_index_list], [self.hour_steppers[i] for i in clk_index_list], steps_full_rev) for clk_index_list in ClockClock24.digit_display_indeces]
+        
+    def display_digit(self, index: int, number: int, direction = 0, extra_revs = 0):
+        self.digit_displays[index].display(number, direction, extra_revs)
         
     def display_digit(self, index: int, number: int, direction = 0, extra_revs = 0):
         self.digit_displays[index].display(number, direction, extra_revs)
