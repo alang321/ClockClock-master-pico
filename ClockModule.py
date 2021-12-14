@@ -77,15 +77,15 @@ class ClockModule: # module for 1 of the 6 pcbs in the clock
             print("Slave not found:", self.i2c_address)
     
     def move_module(self, distance: int, direction: int):
-        buffer = pack("<BHbb", self.cmd_id["move"], distance, direction, self.sub_stepper_id) #cmd_id uint8, distance uint16, dir int8, stepper_id int8           
+        buffer = pack("<BHbb", self.cmd_id["move"], distance, direction, self.sub_stepper_id) #cmd_id uint8, distance uint16, dir int8, stepper_id int8
         
         try:
             self.i2c_bus.writeto(self.i2c_address, buffer)
             
             for stepper in self.steppers:
-                relative = (distance * direction) % self.steps_per_rev
+                relative = (distance * direction) % self.steps_full_rev
             
-                self.current_target_pos = (self.steps_per_rev + self.current_target_pos + relative) % self.steps_per_rev
+                stepper.current_target_pos = (self.steps_full_rev + stepper.current_target_pos + relative) % self.steps_full_rev
         except:
             print("Slave not found:", self.i2c_address)
         

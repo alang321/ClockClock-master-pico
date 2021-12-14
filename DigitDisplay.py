@@ -15,7 +15,7 @@ class DigitDisplay:
     digits_pointer_pos_abs : List[int]
         position in steps of each stepper for each digit
     animations : dict
-        dictionary that contains names of animation modes and transltes to indices
+        dictionary that contains names of animation modes and translates to indices
     minute_steppers : List[ClockStepper]
         list of 24 stepper objs containing minute pointers from top left row first
     hour_steppers : List[ClockStepper]
@@ -44,8 +44,17 @@ class DigitDisplay:
                                [[0.5, 0.5, 0, 0, 0, 0],              [0.25, 0.75, 0.25, 0.75, 0.25, 0.75]], # 8
                                [[0.5, 0.5, 0.25, 0.5, 0.25, 0],      [0.25, 0.75, 0, 0, 0.25, 0.75]]];      # 9
     
+    #animations modes for position transitions
     animations = {
-      "shortest path": 0
+      "stealth": 0, # minimal movements to minimize noise
+      "shortest path": 1, # simply taking shortest path to new position
+      "extra rotations": 2, # move with extra rotations to target
+      "straight wave": 3, # align steppers in straight line at 45 degrees and start moving delayed from left to right
+      "opposing pointers", 4 # align all pointers at bottom and start moving minute and hours opposite direction with extra rotations to target
+      "cross eyes", 5, # move all pointer to center and move with extra rotation to target, maybe change speed depending on how far out
+      "speedy clock",  6, # move minute and hour hand at different speeds to give "illsuion" of clock
+      "circles",  7, # align pointers in a circular looking thing, start rotating staggered from center inwards to center
+      "opposites",  8, # simply rotate pointers in opposing directions to target
       }
     
     def __init__(self, minute_steppers, hour_steppers, steps_full_rev = 4320):
@@ -88,7 +97,7 @@ class DigitDisplay:
                 self.minute_steppers[clk_index].move_to_extra_revs(self.digits_pointer_pos_abs[digit][1][sub_index], direction, extra_revs)
                 
     def display_digits(self, digits, animation = 0):
-        """Display a time on the clock
+        """Display all 4 digits simultaneously on the clock
         
         Parameters
         ----------
@@ -103,38 +112,70 @@ class DigitDisplay:
                 self.minute_steppers[clk_index].move_to(self.digits_pointer_pos_abs[digit][1][sub_index], 0)
         return
     
-    def display_digits_stealth(self, digits):
-        """Display a time on the clock, minimizes the steppers that are moving by
-        checking if either of the clock pointers is already at desired position
+    def new_pose_stealth(self, new_positions_0, new_positions_1):
+        """Display a series of new positions on the clock, minimizes the steppers that are moving by
+        checking if either of the clock pointers is already at desired position,
+        can be used with slow steppers speed for very quiet, night-time operation
         
         Parameters
         ----------
-        digits : List[int]
-            the digits to display, should be length 4
+        new_positions_0 : List[int]
+            the positions to display, should int arrays of length 24
+        new_positions_1 : List[int]
+            the positions to display, should int arrays of length 24
         """
-        for field, digit in enumerate(digits):
-            for sub_index, clk_index in enumerate(self.digit_display_indeces[field]):
-                a_pos = self.digits_pointer_pos_abs[digit][0][sub_index]
-                b_pos = self.digits_pointer_pos_abs[digit][1][sub_index]
-                m = self.minute_steppers[clk_index]
-                h = self.hour_steppers[clk_index]
-                m_pos = m.current_target_pos
-                h_pos = h.current_target_pos
-                
-                #if both steppers are equal to either a or b dont do anything
-                if (m_pos == a_pos and h_pos == b_pos) or (m_pos == b_pos and h_pos == a_pos):
-                    continue
-                #if one is equal move the other, minute priority because hour is usually quieter
-                elif m_pos == a_pos:
-                    h.move_to(b_pos, 0)
-                elif m_pos == b_pos:
-                    h.move_to(a_pos, 0)
-                elif h_pos == a_pos:
-                    m.move_to(b_pos, 0)
-                elif h_pos == b_pos:
-                    m.move_to(a_pos, 0)
-                #if neither one is equal move both
-                else:
-                    m.move_to(a_pos, 0)
-                    h.move_to(b_pos, 0)
+        for clk_index in range(24):
+            a_pos = new_positions_0[clk_index]
+            b_pos = new_positions_1[clk_index]
+            m = self.minute_steppers[clk_index]
+            h = self.hour_steppers[clk_index]
+            m_pos = m.current_target_pos
+            h_pos = h.current_target_pos
             
+            #if both steppers are equal to either a or b dont do anything
+            if (m_pos == a_pos and h_pos == b_pos) or (m_pos == b_pos and h_pos == a_pos):
+                continue
+            #if one is equal move the other, minute priority because hour is usually quieter
+            elif m_pos == a_pos:
+                h.move_to(b_pos, 0)
+            elif m_pos == b_pos:
+                h.move_to(a_pos, 0)
+            elif h_pos == a_pos:
+                m.move_to(b_pos, 0)
+            elif h_pos == b_pos:
+                m.move_to(a_pos, 0)
+            #if neither one is equal move both
+            else:
+                m.move_to(a_pos, 0)
+                h.move_to(b_pos, 0)
+    
+    def new_pose_shortest_path(self, new_positions_h, new_positions_m):
+        """Display a series of new positions on the clock, move stepper the shortest path to its destianation
+        
+        Parameters
+        ----------
+        new_positions_h : List[int]
+            the positions to display for hour steppers, should int arrays of length 24
+        new_positions_m : List[int]
+            the positions to display for hour steppers, should int arrays of length 24
+        """
+        for clk_index in range(24):
+            self.hour_steppers[clk_index].move_to(new_positions_h[clk_index], direction)
+            self.minute_steppers[clk_index].move_to(new_positions_m[clk_index], direction)
+    
+    def new_pose_extra_rotations(self, new_positions_h, new_positions_m):
+        """Display a series of new positions on the clock, move stepper the shortest path to its destianation
+        
+        Parameters
+        ----------
+        new_positions_h : List[int]
+            the positions to display for hour steppers, should int arrays of length 24
+        new_positions_m : List[int]
+            the positions to display for hour steppers, should int arrays of length 24
+        """
+        extra_rotations = 3
+        direction == -1
+        start_pos
+        for clk_index in range(24):
+            self.hour_steppers[clk_index].move_to(new_positions_h[clk_index], direction)
+            self.minute_steppers[clk_index].move_to(new_positions_m[clk_index], direction)
