@@ -6,8 +6,8 @@ from DigitDisplay import DigitDisplay
 from ClockModule import ClockModule
 
 class ClockClock24:
-    stepper_speed_default = 600
-    stepper_accel_default = 250
+    stepper_speed_default = 680
+    stepper_accel_default = 200
     
     stepper_speed_stealth = 150
     stepper_accel_stealth = 70
@@ -18,8 +18,8 @@ class ClockClock24:
     modes = {
       "sleep": 0,
       "stealth": 1,
-      "shortest path": 3, #move to new poosition with shortest path
-      "visual": 2, #every timechange has choreographies and stuff
+      "shortest path": 2, #move to new poosition with shortest path
+      "visual": 3, #every timechange has choreographies and stuff
       "analog": 4 # every clock is a normal clock
       }
     

@@ -25,7 +25,7 @@ slave_bus = [i2c1, i2c0, # the bus the clock is on
 
 time.sleep(6) #wait so clock modules have time to setup
 
-clockclock = ClockClock24(slave_adr, slave_bus, ClockClock24.modes["stealth"], 4320)
+clockclock = ClockClock24(slave_adr, slave_bus, ClockClock24.modes["visual"], 4320)
 
 rtc = DS3231_timekeeper(new_minute_handler, 13, i2c1)
 
