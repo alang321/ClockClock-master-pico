@@ -6,11 +6,11 @@ from DigitDisplay import DigitDisplay
 from ClockModule import ClockModule
 
 class ClockClock24:
-    stepper_speed_default = 680
-    stepper_accel_default = 200
+    stepper_speed_default = 625
+    stepper_accel_default = 220
     
     stepper_speed_stealth = 150
-    stepper_accel_stealth = 70
+    stepper_accel_stealth = 50
     
     stepper_speed_analog = 70
     stepper_accel_analog = 50
@@ -38,6 +38,12 @@ class ClockClock24:
         self.time_handler = None
         self.__current_mode = -1
         self.set_mode(mode)
+    
+    def display_digit(self, field: int, number: int, direction = 0, extra_revs = 0):
+        self.digit_display.display_digit(field, number, direction, extra_revs)
+    
+    def display_time(self, hour: int, minute: int):
+        self.time_handler(hour, minute)
         
     def set_mode(self, mode: int):
         if self.__current_mode != -1:
@@ -49,17 +55,11 @@ class ClockClock24:
         
     def get_mode(self):
         return self.__current_mode
-    
-    def display_digit(self, field: int, number: int, direction = 0, extra_revs = 0):
-        self.digit_display.display_digit(field, number, direction, extra_revs)
-    
-    def display_time(self, hour: int, minute: int):
-        self.time_handler(hour, minute)
         
     def __sleep(self, start: bool):
         if start:
             self.set_speed_all(ClockClock24.stepper_speed_default)
-            self.set_accel_all(ClockClock24.stepper_speed_default)
+            self.set_accel_all(ClockClock24.stepper_accel_default)
             
             self.move_to_all(int(0.5*self.steps_full_rev))
             
@@ -75,22 +75,22 @@ class ClockClock24:
     def __stealth(self, start: bool):
         if start:
             self.set_speed_all(ClockClock24.stepper_speed_stealth)
-            self.set_accel_all(ClockClock24.stepper_speed_stealth)
+            self.set_accel_all(ClockClock24.stepper_accel_stealth)
     
     def __shortest_path(self, start: bool):
         if start:
             self.set_speed_all(ClockClock24.stepper_speed_default)
-            self.set_accel_all(ClockClock24.stepper_speed_default)
+            self.set_accel_all(ClockClock24.stepper_accel_default)
     
     def __visual(self, start: bool):
         if start:
             self.set_speed_all(ClockClock24.stepper_speed_default)
-            self.set_accel_all(ClockClock24.stepper_speed_default)
+            self.set_accel_all(ClockClock24.stepper_accel_default)
     
     def __analog(self, start: bool):
         if start:
             self.set_speed_all(ClockClock24.stepper_speed_analog)
-            self.set_accel_all(ClockClock24.stepper_speed_analog)
+            self.set_accel_all(ClockClock24.stepper_accel_analog)
         
     def __sleep_new_time(self, hour: int, minute: int):
         return
