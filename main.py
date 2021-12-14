@@ -1,6 +1,5 @@
 import machine
 import time
-import random
 from ClockClock24 import ClockClock24
 from DS3231_timekeeper import DS3231_timekeeper
 

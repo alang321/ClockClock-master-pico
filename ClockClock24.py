@@ -1,5 +1,6 @@
 import machine
 import time
+import random
 from ClockStepper import ClockStepper
 from DigitDisplay import DigitDisplay
 from ClockModule import ClockModule
@@ -17,8 +18,9 @@ class ClockClock24:
     modes = {
       "sleep": 0,
       "stealth": 1,
+      "shortest path": 3, #move to new poosition with shortest path
       "visual": 2, #every timechange has choreographies and stuff
-      "analog": 3 # every clock is a normal clock
+      "analog": 4 # every clock is a normal clock
       }
     
     def __init__(self, slave_adr_list: List[int], i2c_bus_list: List[machine.I2C], mode, steps_full_rev = 4320):
@@ -29,10 +31,10 @@ class ClockClock24:
         self.minute_steppers = [stepper for stepper_list in (module.minute_steppers for module in self.clock_modules) for stepper in stepper_list]
         self.hour_steppers = [stepper for stepper_list in (module.hour_steppers for module in self.clock_modules) for stepper in stepper_list]
         
-        self.digit_display = DigitDisplay(self.minute_steppers, self.hour_steppers, self.steps_full_rev)
+        self.digit_display = DigitDisplay(self)
 
-        self.mode_change_handlers = [self.__sleep, self.__stealth, self.__visual, self.__analog]
-        self.time_change_handlers = [self.__sleep_new_time, self.__stealth_new_time, self.__visual_new_time, self.__analog_new_time]
+        self.mode_change_handlers = [self.__sleep, self.__stealth, self.__shortest_path, self.__visual, self.__analog]
+        self.time_change_handlers = [self.__sleep_new_time, self.__stealth_new_time, self.__shortest_path_new_time, self.__visual_new_time, self.__analog_new_time]
         self.time_handler = None
         self.__current_mode = -1
         self.set_mode(mode)
@@ -75,6 +77,11 @@ class ClockClock24:
             self.set_speed_all(ClockClock24.stepper_speed_stealth)
             self.set_accel_all(ClockClock24.stepper_speed_stealth)
     
+    def __shortest_path(self, start: bool):
+        if start:
+            self.set_speed_all(ClockClock24.stepper_speed_default)
+            self.set_accel_all(ClockClock24.stepper_speed_default)
+    
     def __visual(self, start: bool):
         if start:
             self.set_speed_all(ClockClock24.stepper_speed_default)
@@ -100,7 +107,21 @@ class ClockClock24:
             to display
         """
         digits = [hour//10, hour%10, minute//10, minute%10]
-        self.digit_display.display_digits_stealth(digits)
+        self.digit_display.display_digits(digits, DigitDisplay.animations["stealth"])
+        
+    def __shortest_path_new_time(self, hour: int, minute: int):
+        """New time handler for visual display option (choreography transitions)
+        gets called by display_time if this is the selected mode
+        
+        Parameters
+        ----------
+        hour : int
+            hour to display
+        minute : int
+            to display
+        """
+        digits = [hour//10, hour%10, minute//10, minute%10]
+        self.digit_display.display_digits(digits, DigitDisplay.animations["shortest path"])
         
     def __visual_new_time(self, hour: int, minute: int):
         """New time handler for visual display option (choreography transitions)
@@ -113,10 +134,14 @@ class ClockClock24:
         minute : int
             to display
         """
-        #todo : implement
         digits = [hour//10, hour%10, minute//10, minute%10]
-        self.digit_display.display_digits(digits)
-        return
+        animation_indeces = [DigitDisplay.animations["extra revs"],
+                             DigitDisplay.animations["straight wave"],
+                             DigitDisplay.animations["opposing pointers"],
+                             DigitDisplay.animations["focus"],
+                             DigitDisplay.animations["opposites"]]
+        
+        self.digit_display.display_digits(digits, random.choice(animation_indeces))
     
     def __analog_new_time(self, hour: int, minute: int):
         """New time handler for analog display option (each clock is an analog clock)
