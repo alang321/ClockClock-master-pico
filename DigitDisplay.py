@@ -233,7 +233,7 @@ class DigitDisplay:
             for clk_index in col:
                 self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], direction, extra_revs)
                 self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], direction, extra_revs)
-            time.sleep(0.25)
+            time.sleep(0.35)
     
     def new_pose_opposing_pointers(self, new_positions_h, new_positions_m):
         """Display a series of new positions on the clock, align all pointers at bottom and start moving minute and hours
@@ -274,19 +274,27 @@ class DigitDisplay:
         extra_revs = 2
         direction = random.choice([1, -1])
         
+        # up is poitive x axis
+        # left is poitive y axis
+        # origin is at the center of top left clock
+        points = [[-1, -3.5], [0.5, 0.5], [-2.5, 0.5], [-2.5, -7.5], [0.5, -7.5]]  #in units of clock spacing (10cm in this case)
+        point = random.choice(points)
+        
         for clk_index in range(24):
-            # this assumes equal vertical and horizontal clock spacing
+            # this assumes equal vertical and horizontal clock spacing, which is the case obv
             row = clk_index // 8
             col = clk_index % 8
+            
+            #the locations of the current stepper in units of clock spacing
+            loc_x = -row
+            loc_y = -col
 
-            # up is poitive x axis
-            # left is poitive y axis
             # the point the steppers should point too in units of clock spacing
-            point_x = 1  # between 4th and 5th clock
-            point_y = 3.5  # on 2nd row
+            point_x = point[0]
+            point_y = point[1]
 
-            dist_x = row - point_x # distance in horizontal direction to point
-            dist_y = col - point_y # distance in vecrtical direction to point
+            dist_x = point_x - loc_x # signed distance in vertical direction to point
+            dist_y = point_y - loc_y # signed distance in horizontal direction to point
 
             theta = (-math.atan2(dist_y, dist_x) + math.pi * 2) % (math.pi * 2) 
             frac_ang = theta / (math.pi * 2)  # angle from 12 o clock position in cw dir
@@ -300,14 +308,31 @@ class DigitDisplay:
         while self.clockclock.is_running():
             time.sleep(0.2)
             
-        for i in range(4):
-            for clk_index in DigitDisplay.column_indices[3 - i]:
+        delay_per_distance = 0. # s
+        start_delays = [0] * len(DigitDisplay.column_indices)
+        col_indices = list(range(len(DigitDisplay.column_indices)))
+        #calculate time delay of each column to point to scale start time    
+        for col_index in col_indices:
+            loc_y = -col_index
+            point_y = point[1]
+            distance = abs(point_y - loc_y)
+            
+            start_delays[col_index] = distance * delay_per_distance
+        
+        #so values start at 0
+        min_delay = min(start_delays)
+        start_delays = [i - min_delay for i in start_delays]
+        delay_index = sorted(zip(start_delays, col_indices))
+        
+        prev_delay = 0 # s, to calculate relative delay to last column
+        for i in range(len(DigitDisplay.column_indices)):
+            total_delay, col_index = delay_index
+            time.sleep(total_delay - prev_delay)
+            prev_delay = total_delay
+            
+            for clk_index in DigitDisplay.column_indices[col_index]:
                 self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], direction, extra_revs)
                 self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], direction, extra_revs)
-            for clk_index in DigitDisplay.column_indices[4 + i]:
-                self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], direction, extra_revs)
-                self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], direction, extra_revs)
-            time.sleep(0.45)
     
     def new_pose_opposites(self, new_positions_h, new_positions_m):
         """Display a series of new positions on the clock, simply rotate minute and hour pointers in opposing directions to target
@@ -324,5 +349,4 @@ class DigitDisplay:
         for clk_index in range(24):
             self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], 1, extra_revs)
             self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], -1, extra_revs)
-        
         
