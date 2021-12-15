@@ -326,7 +326,7 @@ class DigitDisplay:
         
         prev_delay = 0 # s, to calculate relative delay to last column
         for i in range(len(DigitDisplay.column_indices)):
-            total_delay, col_index = delay_index
+            total_delay, col_index = delay_index[i]
             time.sleep(total_delay - prev_delay)
             prev_delay = total_delay
             
