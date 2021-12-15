@@ -27,6 +27,20 @@ time.sleep(6) #wait so clock modules have time to setup
 
 clockclock = ClockClock24(slave_adr, slave_bus, ClockClock24.modes["visual"], 4320)
 
+louder = [5, 6, 7, 14, 15, 16, 17, 23, 19, 18]
+#LOUd, LOUD,loud,loud, pretty loud, pretty loud,pretty loud, pretty loud, kind loud, not very loud, 
+
+for clk_index in louder:
+    clockclock.minute_steppers[clk_index].move_to_extra_revs(0, -1, 2)
+    clockclock.hour_steppers[clk_index].move_to_extra_revs(0, 1, 2)
+    
+    time.sleep(0.1)
+    while clockclock.is_running():
+        time.sleep(0.2)
+    time.sleep(0.25)
+    
+time.sleep(1000)   
+
 rtc = DS3231_timekeeper(new_minute_handler, 13, i2c1)
 
 button = machine.Pin(26, machine.Pin.IN, machine.Pin.PULL_UP)
