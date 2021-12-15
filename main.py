@@ -14,14 +14,14 @@ def new_minute_handler():
 i2c1 = machine.I2C(1,sda=machine.Pin(14), scl=machine.Pin(3), freq=100000)
 i2c0 = machine.I2C(0,sda=machine.Pin(16), scl=machine.Pin(17), freq=100000)
 
-# slave addresses
-module_i2c_adr = [13, 12, # the adress of the slave with which this clock has to be adressed
-             15, 14, 
-             17, 16]
+# module addresses  (pcb containing 4 steppers and a mcu, stm32f103 in this case)
+module_i2c_adr = [13, 12, # the adress of the module starting top left row first
+                  15, 14, 
+                  17, 16]
 
-module_i2c_bus = [i2c1, i2c0, # the bus the clock is on
-             i2c1, i2c0, 
-             i2c1, i2c0]
+module_i2c_bus = [i2c1, i2c0, # the bus on which the module is
+                  i2c1, i2c0, 
+                  i2c1, i2c0]
 
 time.sleep(6) #wait so clock modules have time to setup
 
