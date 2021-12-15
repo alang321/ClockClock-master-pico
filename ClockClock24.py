@@ -7,7 +7,7 @@ from ClockModule import ClockModule
 
 class ClockClock24:
     stepper_speed_default = 625
-    stepper_accel_default = 220
+    stepper_accel_default = 200
     
     stepper_speed_stealth = 150
     stepper_accel_stealth = 50

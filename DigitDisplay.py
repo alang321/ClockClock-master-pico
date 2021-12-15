@@ -1,6 +1,7 @@
 from ClockStepper import ClockStepper
 import math
 import time
+import random
 
 class DigitDisplay:
     """
@@ -196,7 +197,7 @@ class DigitDisplay:
             the positions to display for hour steppers, should int arrays of length 24
         """
         extra_revs = 2
-        direction = -1
+        direction = random.choice([-1, 1])
         
         for clk_index in range(24):
             self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], direction, extra_revs)
@@ -215,9 +216,10 @@ class DigitDisplay:
             the positions to display for hour steppers, should int arrays of length 24
         """
         extra_revs = 2
-        direction = -1
-        start_pos_m = int(self.steps_full_rev * 0.875)
-        start_pos_h = int(self.steps_full_rev * 0.375)
+        direction = random.choice([-1, 1])
+        start_ang = random.choice([0.875, 0.625])
+        start_pos_m = int(self.steps_full_rev * start_ang)
+        start_pos_h = int(self.steps_full_rev * (start_ang - 0.5))
         
         for clk_index in range(24):
             self.hour_steppers[clk_index].move_to(start_pos_h, 0)
@@ -245,7 +247,8 @@ class DigitDisplay:
             the positions to display for hour steppers, should int arrays of length 24
         """
         extra_revs = 2
-        start_pos = int(self.steps_full_rev * 0.5)
+        start_ang = random.choice([0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875])
+        start_pos = int(self.steps_full_rev * start_ang)
         
         self.clockclock.move_to_all(start_pos, 0)
         
@@ -269,7 +272,7 @@ class DigitDisplay:
             the positions to display for hour steppers, should int arrays of length 24
         """
         extra_revs = 2
-        direction = 1
+        direction = random.choice([1, -1])
         
         for clk_index in range(24):
             # this assumes equal vertical and horizontal clock spacing
@@ -304,7 +307,7 @@ class DigitDisplay:
             for clk_index in DigitDisplay.column_indices[4 + i]:
                 self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], direction, extra_revs)
                 self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], direction, extra_revs)
-            time.sleep(0.25)
+            time.sleep(0.45)
     
     def new_pose_opposites(self, new_positions_h, new_positions_m):
         """Display a series of new positions on the clock, simply rotate minute and hour pointers in opposing directions to target
