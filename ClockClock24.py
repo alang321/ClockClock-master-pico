@@ -6,7 +6,7 @@ from DigitDisplay import DigitDisplay
 from ClockModule import ClockModule
 
 class ClockClock24:
-    stepper_speed_default = 625
+    stepper_speed_default = 585
     stepper_accel_default = 200
     
     stepper_speed_stealth = 150
