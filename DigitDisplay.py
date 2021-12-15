@@ -308,7 +308,7 @@ class DigitDisplay:
         while self.clockclock.is_running():
             time.sleep(0.2)
             
-        delay_per_distance = 0. # s
+        delay_per_distance = 0.4 # s
         start_delays = [0] * len(DigitDisplay.column_indices)
         col_indices = list(range(len(DigitDisplay.column_indices)))
         #calculate time delay of each column to point to scale start time    
