@@ -464,9 +464,9 @@ class DigitDisplay:
 
                 E_total = [E_vector[0] + E_total[0], E_vector[1] + E_total[1]]
                 
-            eq = [E_total[1], -E_total[0]]#vector of quipotential field
+            eq = [E_total[1], -E_total[0]]#direction of quipotential lines, normal to field lines
             
-            theta = (-math.atan2(E_total[1], E_total[0]) + math.pi * 2) % (math.pi * 2) 
+            theta = (-math.atan2(eq[1], eq[0]) + math.pi * 2) % (math.pi * 2) 
             frac_ang = theta / (math.pi * 2)  # angle from 12 o clock position in cw dir
 
             start_pos_m = frac_ang * self.steps_full_rev
