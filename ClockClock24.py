@@ -139,7 +139,9 @@ class ClockClock24:
                              DigitDisplay.animations["straight wave"],
                              DigitDisplay.animations["opposing pointers"],
                              DigitDisplay.animations["focus"],
-                             DigitDisplay.animations["opposites"]]
+                             DigitDisplay.animations["opposites"],
+                             DigitDisplay.animations["field lines"],
+                             DigitDisplay.animations["equipotential"]]
         
         self.digit_display.display_digits(digits, random.choice(animation_indeces))
     

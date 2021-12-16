@@ -62,8 +62,9 @@ class DigitDisplay:
       "opposing pointers": 4, # align all pointers at bottom and start moving minute and hours opposite direction with extra rotations to target
       "focus": 5, # move all pointer to point to center and move with extra rotation to target, maybe change speed depending on how far out
       "opposites": 6, # simply rotate pointers in opposing directions to target
-      #"circles":  7, # align pointers in a circular looking thing, start rotating staggered from center inwards to center
-      #"speedy clock": 8, # move minute and hour hand at different speeds to give "illsuion" of clock, right nowmthi would have to be implemented fully blocking
+      "field lines":  7, # visualize electric vector field of 2 point charges
+      "equipotential": 8, # visualises equipotential line directions of 2 point charges
+      #"speedy clock": 9, # move minute and hour hand at different speeds to give "illsuion" of clock, right nowmthi would have to be implemented fully blocking
       }
     
     def __init__(self, clockclock):
@@ -88,6 +89,8 @@ class DigitDisplay:
             self.new_pose_opposing_pointers,
             self.new_pose_focus,
             self.new_pose_opposites,
+            self.new_pose_field_lines,
+            self.new_pose_equipotential,
           ]
         
         self.digits_pointer_pos_abs = [[[int(frac * self.steps_full_rev) for frac in hour_minute] for hour_minute in number] for number in DigitDisplay.digits_pointer_pos_frac]
@@ -349,4 +352,135 @@ class DigitDisplay:
         for clk_index in range(24):
             self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], 1, extra_revs)
             self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], -1, extra_revs)
+    
+    def new_pose_field_lines(self, new_positions_h, new_positions_m):
+        """Display a series of new positions on the clock, visualises vectors of electric field with 2 point charges
         
+        Parameters
+        ----------
+        new_positions_h : List[int]
+            the positions to display for hour steppers, should int arrays of length 24
+        new_positions_m : List[int]
+            the positions to display for hour steppers, should int arrays of length 24
+        """
+        extra_revs = 2
+        direction = random.choice([-1, 1])
+        
+        # up is poitive x axis
+        # left is poitive y axis
+        # origin is at the center of top left clock
+        q_magnitudes = [1, -1]
+        point_1 = random.choice([[-1, -1.5], [0.5, 0.5], [-2.5, 0.5]]) 
+        point_2 = random.choice([[-1, -5.5], [-2.5, -7.5], [0.5, -7.5]]) 
+        q_locations = [point_1, point_2]
+        
+        for clk_index in range(24):
+            # this assumes equal vertical and horizontal clock spacing, which is the case obv
+            row = clk_index // 8
+            col = clk_index % 8
+            
+            #the locations of the current stepper in units of clock spacing
+            loc_x = -row
+            loc_y = -col
+            
+            E_total = [0, 0]
+            
+            for q_index, q_magnitude in enumerate(q_magnitudes):
+                point_x = q_locations[q_index][0]
+                point_y = q_locations[q_index][1]
+
+                dist_x = loc_x - point_x
+                dist_y = loc_y - point_y
+                
+                # the point the steppers should point too in units of clock spacing
+                distance = math.sqrt(dist_x**2 + dist_y**2)
+                
+                E_vector = [q_magnitude/distance**2*dist_x/distance, q_magnitude/distance**2*dist_y/distance]
+
+                E_total = [E_vector[0] + E_total[0], E_vector[1] + E_total[1]]
+            
+            theta = (-math.atan2(E_total[1], E_total[0]) + math.pi * 2) % (math.pi * 2) 
+            frac_ang = theta / (math.pi * 2)  # angle from 12 o clock position in cw dir
+            
+            start_pos_m = frac_ang * self.steps_full_rev
+            start_pos_h = ((frac_ang + 0.5) * self.steps_full_rev) % self.steps_full_rev
+            
+            self.hour_steppers[clk_index].move_to(int(start_pos_h), 0)
+            self.minute_steppers[clk_index].move_to(int(start_pos_m), 0)
+            
+        #wait for move to be done
+        time.sleep(0.1)
+        while self.clockclock.is_running():
+            time.sleep(0.2)
+        time.sleep(0.2)
+            
+        for clk_index in range(24):
+            self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], direction, extra_revs)
+            self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], direction, extra_revs) 
+    
+    def new_pose_equipotential(self, new_positions_h, new_positions_m):
+        """Display a series of new positions on the clock, visualises directions of equipotential lines with 2 point charges
+        
+        Parameters
+        ----------
+        new_positions_h : List[int]
+            the positions to display for hour steppers, should int arrays of length 24
+        new_positions_m : List[int]
+            the positions to display for hour steppers, should int arrays of length 24
+        """
+        extra_revs = 2
+        direction = random.choice([-1, 1])
+        
+        # up is poitive x axis
+        # left is poitive y axis
+        # origin is at the center of top left clock
+        q_magnitudes = [1, -1]
+        point_1 = random.choice([[-1, -1.5], [0.5, 0.5], [-2.5, 0.5]]) 
+        point_2 = random.choice([[-1, -5.5], [-2.5, -7.5], [0.5, -7.5]]) 
+        q_locations = [point_1, point_2]
+        
+        for clk_index in range(24):
+            # this assumes equal vertical and horizontal clock spacing, which is the case obv
+            row = clk_index // 8
+            col = clk_index % 8
+            
+            #the locations of the current stepper in units of clock spacing
+            loc_x = -row
+            loc_y = -col
+            
+            E_total = [0, 0]
+            
+            for q_index, q_magnitude in enumerate(q_magnitudes):
+                point_x = q_locations[q_index][0]
+                point_y = q_locations[q_index][1]
+
+                dist_x = loc_x - point_x
+                dist_y = loc_y - point_y
+                
+                # the point the steppers should point too in units of clock spacing
+                distance = math.sqrt(dist_x**2 + dist_y**2)
+                
+                E_vector = [q_magnitude/distance**2*dist_x/distance, q_magnitude/distance**2*dist_y/distance]
+
+                E_total = [E_vector[0] + E_total[0], E_vector[1] + E_total[1]]
+                
+            eq = [E_total[1], -E_total[0]]#vector of quipotential field
+            
+            theta = (-math.atan2(E_total[1], E_total[0]) + math.pi * 2) % (math.pi * 2) 
+            frac_ang = theta / (math.pi * 2)  # angle from 12 o clock position in cw dir
+
+            start_pos_m = frac_ang * self.steps_full_rev
+            start_pos_h = ((frac_ang + 0.5) * self.steps_full_rev) % self.steps_full_rev
+            
+            self.hour_steppers[clk_index].move_to(int(start_pos_h), 0)
+            self.minute_steppers[clk_index].move_to(int(start_pos_m), 0)
+            
+        #wait for move to be done
+        time.sleep(0.1)
+        while self.clockclock.is_running():
+            time.sleep(0.2)
+        time.sleep(0.2)
+            
+        for clk_index in range(24):
+            self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], direction, extra_revs)
+            self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], direction, extra_revs) 
