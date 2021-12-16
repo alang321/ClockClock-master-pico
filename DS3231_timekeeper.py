@@ -79,7 +79,6 @@ class DS3231_timekeeper:
                 elif datetime.weekday == 7: # its switchday
                     if datetime.hour >= 2:
                         cest = False
-                
         else:
             cest = False
             

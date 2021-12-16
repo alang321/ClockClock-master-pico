@@ -280,7 +280,7 @@ class DigitDisplay:
         # up is poitive x axis
         # left is poitive y axis
         # origin is at the center of top left clock
-        points = [[-1, -3.5], [0.5, 0.5], [-2.5, 0.5], [-2.5, -7.5], [0.5, -7.5]]  #in units of clock spacing (10cm in this case)
+        points = [[-1, -3.5], [0.5, 0.5], [-2.5, 0.5], [-2.5, -7.5], [0.5, -7.5], [-1, -5.5], [-1, -1.5]]  #in units of clock spacing (10cm in this case)
         point = random.choice(points)
         
         for clk_index in range(24):
