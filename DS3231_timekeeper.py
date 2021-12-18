@@ -3,13 +3,13 @@ import urtc
 import utime
 
 class DS3231_timekeeper:
-    def __init__(self, new_minute_handler, alarm_pin: int, i2c_bus: machine.I2C, second = 0, cest_compensation = True):
+    def __init__(self, new_minute_handler, alarm_pin: int, i2c_bus: machine.I2C, second = 0):
         """
-        Always provide set time in UTC+1 if cest compensation is turned on
+        Always provide set time in current cet/cest timedate if cet/cest is turned on
+        if turned off no timeswitching, any time can be chosen
         """
         self.alarm_pin = alarm_pin
         self.second = second
-        self.cest_compensation = cest_compensation
         self.new_minute_handler = new_minute_handler
         
         self.rtc = urtc.DS3231(i2c_bus)
@@ -23,12 +23,8 @@ class DS3231_timekeeper:
         self.rtc.alarm(False)
         self.rtc.alarm_time(alarmtime)
  
-    #todo: summer time compensation    
     def get_datetime(self):
-        if self.cest_compensation:
-            return DS3231_timekeeper.convert_utc1_to_cest(self.rtc.datetime())
-        else:
-            return self.rtc.datetime()
+        return self.rtc.datetime()
  
     def get_hour_minute(self):
         current_time = self.get_datetime()
@@ -44,47 +40,34 @@ class DS3231_timekeeper:
     def alarm_handler(self, pin):
         self.rtc.alarm(False)
         self.new_minute_handler()
-    
-    @staticmethod
-    def convert_utc1_to_cest(datetime):
+
+    def increment_hour_minute(hour = 0, minute = 0):
         """
-        function to convert UTC+1 to CET/CEST
+        pass positive or negative minutes or hour to add or subtract to current time, used for timesetting buttons
+        sets seconds equal to 0
         """
-        # starts last sunday in march, its cest if these are given
-        # month = march - 3 - 31 days
-        # weekday = 7
-        # day > (31 - 7)
+        datetime = self.get_datetime()
         
-        # ends last sunday in october, its cest if these are given
-        # month = october - 10 - 31 days
-        # weekday = 7
-        # day < (31 - 7)
+        # combine times
+        combined_hour = datetime.hour + hour
+        combined_minute = datetime.minute + minute
         
-        if 3 < datetime.month < 10:
-            cest = True
-        elif datetime.month == 3 and datetime.day > 24:
-            cest = False
-            # the difference of the current weekday to 7 has to be less than the difference of the current day to 31,
-            # this means the last sunday already happened
-            if (31 - datetime.day) < (7 - datetime.weekday): 
-                cest = True
-            elif datetime.weekday == 7: # its switchday
-                if datetime.hour >= 2:
-                    cest = True
-        elif datetime.month == 10:
-            cest = True
-            if datetime.day > 24:
-                if (31 - datetime.day) < (7 - datetime.weekday): # see before
-                    cest = False
-                elif datetime.weekday == 7: # its switchday
-                    if datetime.hour >= 2:
-                        cest = False
+        if combined_minute >= 0:
+            combined_hour = combined_hour + combined_minute//60
+            combined_minute = combined_minute % 60
         else:
-            cest = False
-            
-        if cest:
-            return urtc.datetime_tuple(datetime.year, datetime.month, datetime.day, datetime.weekday, datetime.hour+1, datetime.minute, datetime.second, datetime.millisecond)
-        else:
-            return datetime
-        
+            # (combined_minute + (-combined_minute%60))//60 -> "floor" towards zero for negative numbers
+            combined_hour = combined_hour + (combined_minute + (-combined_minute%60))//60
+            combined_minute = combined_minute % -60
+            if combined_minute < 0:
+                combined_minute = combined_minute + 60
+                combined_hour = combined_hour - 1
                 
+        if combined_hour >= 0:
+            combined_hour = combined_hour % 24
+        else:
+            combined_hour = combined_hour % -24
+            if combined_hour < 0:
+                combined_hour = combined_hour + 24
+        
+        self.set_datetime(urtc.datetime_tuple(year=2000, month=1, day=21, weekday=5, hour=combined_hour, minute=combined_minute, second=0, millisecond=0))
