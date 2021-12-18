@@ -24,15 +24,15 @@ class ClockClock24:
       "analog": 4 # every clock is a normal clock
       }
     
-    delay_queue_item = ucollections.namedtuple("delay_queue_item", ["function", "arguments", "start_time"])
-    waiting_queue_item = ucollections.namedtuple("waiting_queue_item", ["function", "arguments"])
     max_waiting_queue_size = 5
     max_delay_queue_size = 48
     
     def __init__(self, slave_adr_list: List[int], i2c_bus_list: List[machine.I2C], mode, steps_full_rev = 4320):
         self.steps_full_rev = steps_full_rev
         
+        #tuples of format: ["function", "arguments"
         self.waiting_queue = [] # a queue where the items get called when the current move is done, contains queu item tuples
+        #tuples of format: ["function", "arguments", "start_time"]
         self.delay_queue = [] # a queue where the items get called when the current move is done, contains queu item tuples
         
         self.clock_modules = [ClockModule(i2c_bus_list[module_index], slave_adr_list[module_index], steps_full_rev) for module_index in range(len(slave_adr_list))]
@@ -55,9 +55,9 @@ class ClockClock24:
     def run_delay_queue(self):
         rm_indices = [] # indices to be removed
         for index, item in enumerate(self.delay_queue):
-            if time.ticks_diff(item.start_time, time.ticks_ms()) <= 0: #if start time has cometh
+            if time.ticks_diff(item[2], time.ticks_ms()) <= 0: #if start time has cometh
                 rm_indices.append(index)
-                item.function(*item.arguments)
+                item[0](*item[1])
                 
         for index in reversed(rm_indices):
             del self.delay_queue[index]
@@ -65,7 +65,7 @@ class ClockClock24:
     def clear_delay_queue(self):
         self.delay_queue.clear()
         
-    def add_to_delay_queue(self, queue_item: ClockClock24.delay_queue_item) -> bool:
+    def add_to_delay_queue(self, queue_item) -> bool:
         if len(self.delay_queue) < ClockClock24.max_delay_queue_size:
             self.delay_queue.append(queue_item)
             return True
@@ -75,21 +75,21 @@ class ClockClock24:
         """
         get start time corresponding to a certain delay in milliseconds
         """
-        return time.ticks_add(time.ticks_ms(), delay_ms)
+        return int(time.ticks_add(time.ticks_ms(), delay_ms))
         
     def run_waiting_queue(self):
         """
         calls a function with given args in queue if the current move is finished, ie. when self.is_running returns false
         """
         if self.waiting_queue:
-            if not self.is_running()
-                item = self.waiting_queue.pop(0);
-                item.function(*item.arguments)
+            if not self.is_running():
+                item = self.waiting_queue.pop(0)
+                item[0](*item[1])
             
     def clear_waiting_queue(self):
         self.waiting_queue.clear()
         
-    def add_to_queue(self, queue_item: ClockClock24.waiting_queue_item) -> bool:
+    def add_to_waiting_queue(self, queue_item) -> bool:
         if len(self.waiting_queue) < ClockClock24.max_waiting_queue_size:
             self.waiting_queue.append(queue_item)
             return True

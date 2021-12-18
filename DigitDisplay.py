@@ -233,7 +233,7 @@ class DigitDisplay:
             self.hour_steppers[clk_index].move_to(start_pos_h, 0)
             self.minute_steppers[clk_index].move_to(start_pos_m, 0)
         
-        self.clockclock.add_to_waiting_queue(self.straight_wave_second_phase,(new_positions_h, new_positions_m, direction, extra_revs))
+        self.clockclock.add_to_waiting_queue((self.straight_wave_second_phase,(new_positions_h, new_positions_m, direction, extra_revs)))
             
     def straight_wave_second_phase(self, new_positions_h, new_positions_m, direction: int, extra_revs: int):
         for col_index, col in enumerate(DigitDisplay.column_indices):
@@ -266,7 +266,7 @@ class DigitDisplay:
         
         self.clockclock.move_to_all(start_pos, 0)
         
-        self.clockclock.add_to_waiting_queue(self.new_pose_opposites,(new_positions_h, new_positions_m, extra_revs))
+        self.clockclock.add_to_waiting_queue((self.new_pose_opposites,(new_positions_h, new_positions_m, extra_revs)))
     
     def new_pose_focus(self, new_positions_h, new_positions_m):
         """Display a series of new positions on the clock, move all pointer to point to center and
@@ -312,7 +312,7 @@ class DigitDisplay:
             self.hour_steppers[clk_index].move_to(start_pos, 0)
             self.minute_steppers[clk_index].move_to(start_pos, 0)
                 
-        self.clockclock.add_to_waiting_queue(self.focus_second_phase,(new_positions_h, new_positions_m, point, direction, extra_revs))
+        self.clockclock.add_to_waiting_queue((self.focus_second_phase,(new_positions_h, new_positions_m, point, direction, extra_revs)))
             
     def focus_second_phase(self, new_positions_h, new_positions_m, point, direction: int, extra_revs: int):
         delay_per_distance = 400 # ms
@@ -417,7 +417,7 @@ class DigitDisplay:
             self.minute_steppers[clk_index].move_to(int(start_pos_m), 0)
             
         #wait for move to be done
-        self.clockclock.add_to_waiting_queue(self.new_pose_extra_revs,(new_positions_h, new_positions_m, direction, extra_revs))
+        self.clockclock.add_to_waiting_queue((self.new_pose_extra_revs,(new_positions_h, new_positions_m, direction, extra_revs)))
     
     def new_pose_equipotential(self, new_positions_h, new_positions_m):
         """Display a series of new positions on the clock, visualises directions of equipotential lines with 2 point charges
@@ -477,5 +477,5 @@ class DigitDisplay:
             self.hour_steppers[clk_index].move_to(int(start_pos_h), 0)
             self.minute_steppers[clk_index].move_to(int(start_pos_m), 0)
             
-            self.clockclock.add_to_waiting_queue(self.new_pose_extra_revs,(new_positions_h, new_positions_m, direction, extra_revs))
+            self.clockclock.add_to_waiting_queue((self.new_pose_extra_revs,(new_positions_h, new_positions_m, direction, extra_revs)))
             

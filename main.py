@@ -34,6 +34,7 @@ rtc = DS3231_timekeeper(new_minute_handler, 13, i2c1)
 
 while True:
     if alarm_flag:
+        alarm_flag = False
         hour, minute = rtc.get_hour_minute()
         clockclock.display_time(hour, minute)
         
