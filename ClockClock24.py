@@ -24,11 +24,12 @@ class ClockClock24:
     stepper_accel_analog = 50
     
     modes = {
-      "sleep": 0,
-      "stealth": 1,
+      "stealth": 0,
+      "visual": 1, #every timechange has choreographies and stuff
       "shortest path": 2, #move to new poosition with shortest path
-      "visual": 3, #every timechange has choreographies and stuff
-      "analog": 4 # every clock is a normal clock
+      "analog": 3, # every clock is a normal clock
+      "change time": 4, # mode geared towards changing time, fast and minimal movements to display time
+      "sleep": 5 # move all steppers to 6 o clock (default) position and disable stepper drivers
       }
     
     max_waiting_queue_size = 5
@@ -49,8 +50,13 @@ class ClockClock24:
         
         self.digit_display = DigitDisplay(self)
 
-        self.mode_change_handlers = [self.__sleep, self.__stealth, self.__shortest_path, self.__visual, self.__analog]
-        self.time_change_handlers = [self.__sleep_new_time, self.__stealth_new_time, self.__shortest_path_new_time, self.__visual_new_time, self.__analog_new_time]
+        self.mode_change_handlers = [self.__stealth, self.__visual, self.__shortest_path, self.__analog, self.__change_time, self.__sleep]
+        self.time_change_handlers = [self.__stealth_new_time,
+                                     self.__visual_new_time,
+                                     self.__shortest_path_new_time,
+                                     self.__analog_new_time,
+                                     self.__change_time_new_time,
+                                     self.__sleep_new_time]
         self.time_handler = None
         self.__current_mode = -1
         self.set_mode(mode)
@@ -128,18 +134,6 @@ class ClockClock24:
         
     def get_mode(self):
         return self.__current_mode
-        
-    def __sleep(self, start: bool):
-        if start:
-            self.time_handler = self.time_change_handlers[self.__current_mode]
-            self.set_speed_all(ClockClock24.stepper_speed_default)
-            self.set_accel_all(ClockClock24.stepper_accel_default)
-            
-            self.move_to_all(int(0.5*self.steps_full_rev))
-            
-            self.add_to_waiting_queue((self.self.enable_disable_driver, (False)))
-        else:
-            self.enable_disable_driver(True)
     
     def __stealth(self, start: bool):
         if start:
@@ -164,9 +158,24 @@ class ClockClock24:
             self.time_handler = self.time_change_handlers[self.__current_mode]
             self.set_speed_all(ClockClock24.stepper_speed_analog)
             self.set_accel_all(ClockClock24.stepper_accel_analog)
+    
+    def __change_time(self, start: bool):
+        if start:
+            self.time_handler = self.time_change_handlers[self.__current_mode]
+            self.set_speed_all(ClockClock24.stepper_speed_fast)
+            self.set_accel_all(ClockClock24.stepper_accel_fast)
         
-    def __sleep_new_time(self, hour: int, minute: int):
-        return
+    def __sleep(self, start: bool):
+        if start:
+            self.time_handler = self.time_change_handlers[self.__current_mode]
+            self.set_speed_all(ClockClock24.stepper_speed_default)
+            self.set_accel_all(ClockClock24.stepper_accel_default)
+            
+            self.move_to_all(int(0.5*self.steps_full_rev))
+            
+            self.add_to_waiting_queue((self.self.enable_disable_driver, (False)))
+        else:
+            self.enable_disable_driver(True)
     
     def __stealth_new_time(self, hour: int, minute: int):
         digits = [hour//10, hour%10, minute//10, minute%10]
@@ -194,6 +203,13 @@ class ClockClock24:
             
         for stepper in self.hour_steppers:
             stepper.move_to(int(self.steps_full_rev/12 * (hour%12 + minute/60)), 0)
+    
+    def __change_time_new_time(self, hour: int, minute: int):
+        digits = [hour//10, hour%10, minute//10, minute%10]
+        self.digit_display.display_digits(digits, DigitDisplay.animations["stealth"])
+        
+    def __sleep_new_time(self, hour: int, minute: int):
+        return
         
     #commands
     def enable_disable_driver(self, enable_disable: bool):
