@@ -3,16 +3,14 @@ import urtc
 import utime
 
 class DS3231_timekeeper:
-    def __init__(self, new_minute_handler, alarm_pin: int, i2c_bus: machine.I2C, second = 0):
-        """
-        Always provide set time in current cet/cest timedate if cet/cest is turned on
-        if turned off no timeswitching, any time can be chosen
-        """
+    def __init__(self, new_minute_handler, alarm_pin: int, i2c_bus: machine.I2C, second = 0, enable_minute_alarm = True):
         self.alarm_pin = alarm_pin
         self.second = second
         self.new_minute_handler = new_minute_handler
         
         self.rtc = urtc.DS3231(i2c_bus)
+        
+        self.enable_minute_alarm = enable_minute_alarm
 
         #setup interrupt
         alarm_flag = False
@@ -39,7 +37,8 @@ class DS3231_timekeeper:
         
     def alarm_handler(self, pin):
         self.rtc.alarm(False)
-        self.new_minute_handler()
+        if self.enable_minute_alarm:
+            self.new_minute_handler()
 
     def increment_hour_minute(hour = 0, minute = 0):
         """
@@ -71,3 +70,4 @@ class DS3231_timekeeper:
                 combined_hour = combined_hour + 24
         
         self.set_datetime(urtc.datetime_tuple(year=2000, month=1, day=21, weekday=5, hour=combined_hour, minute=combined_minute, second=0, millisecond=0))
+        
