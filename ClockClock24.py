@@ -7,12 +7,19 @@ from DigitDisplay import DigitDisplay
 from ClockModule import ClockModule
 
 class ClockClock24:
+    #fast speed used when showing mode numbers and similar
+    stepper_speed_fast = 700
+    stepper_accel_fast = 250
+    
+    #normal speed used in most modes
     stepper_speed_default = 585
     stepper_accel_default = 200
     
+    #used in stealth mode
     stepper_speed_stealth = 150
     stepper_accel_stealth = 50
     
+    #used in analog mode
     stepper_speed_analog = 70
     stepper_accel_analog = 50
     
@@ -31,9 +38,9 @@ class ClockClock24:
         self.steps_full_rev = steps_full_rev
         
         #tuples of format: ["function", "arguments"
-        self.waiting_queue = [] # a queue where the items get called when the current move is done, contains queu item tuples
+        self.waiting_queue = [] # a queue where the items get called when the current move is done
         #tuples of format: ["function", "arguments", "start_time"]
-        self.delay_queue = [] # a queue where the items get called when the current move is done, contains queu item tuples
+        self.delay_queue = [] # a queue where the items get called when the current move is done
         
         self.clock_modules = [ClockModule(i2c_bus_list[module_index], slave_adr_list[module_index], steps_full_rev) for module_index in range(len(slave_adr_list))]
         
@@ -47,6 +54,16 @@ class ClockClock24:
         self.time_handler = None
         self.__current_mode = -1
         self.set_mode(mode)
+        
+    def display_digit(self, field: int, number: int, direction = 0, extra_revs = 0):
+        self.clear_delay_queue()
+        self.clear_waiting_queue()
+        self.digit_display.display_digit(field, number, direction, extra_revs)
+    
+    def display_time(self, hour: int, minute: int):
+        self.clear_delay_queue()
+        self.clear_waiting_queue()
+        self.time_handler(hour, minute)
         
     def run(self):
         self.run_waiting_queue()
@@ -74,7 +91,7 @@ class ClockClock24:
         
     def get_start_time_ms(self, delay_ms: int) -> int:
         """
-        get start time corresponding to a certain delay in milliseconds
+        get start time corresponding to a certain delay from now in milliseconds
         """
         return int(time.ticks_add(time.ticks_ms(), delay_ms))
         
@@ -96,61 +113,55 @@ class ClockClock24:
             return True
         return False
         
-    def display_digit(self, field: int, number: int, direction = 0, extra_revs = 0):
-        self.digit_display.display_digit(field, number, direction, extra_revs)
-    
-    def display_time(self, hour: int, minute: int):
-        self.time_handler(hour, minute)
-        
     def set_mode(self, mode: int):
         if self.__current_mode != -1:
             self.mode_change_handlers[self.__current_mode](False) # "destructor" of old mode
-            
+        
+        self.clear_delay_queue()
+        self.clear_waiting_queue()    
         self.__current_mode = mode
-        self.time_handler = self.time_change_handlers[self.__current_mode]
-        self.mode_change_handlers[self.__current_mode](True) # specific initialisation of new mode
+        self.time_handler = lambda : None # an empty time handler so a new time doesnt interrupt the displaying of the current mode
+        
+        self.digit_display.display_digits([0, 0, 0, self.__current_mode], DigitDisplay.animations["stealth"])
+        
+        self.add_to_waiting_queue((self.mode_change_handlers[self.__current_mode], (True))) # specific initialisation of new mode after display of mode digit is done
         
     def get_mode(self):
         return self.__current_mode
         
     def __sleep(self, start: bool):
         if start:
-            self.clear_delay_queue()
-            self.clear_waiting_queue()
+            self.time_handler = self.time_change_handlers[self.__current_mode]
             self.set_speed_all(ClockClock24.stepper_speed_default)
             self.set_accel_all(ClockClock24.stepper_accel_default)
             
             self.move_to_all(int(0.5*self.steps_full_rev))
             
-            self.add_to_queue(ClockClock24.queue_item(self.self.enable_disable_driver, (False)))
+            self.add_to_waiting_queue((self.self.enable_disable_driver, (False)))
         else:
             self.enable_disable_driver(True)
     
     def __stealth(self, start: bool):
         if start:
-            self.clear_delay_queue()
-            self.clear_waiting_queue()
+            self.time_handler = self.time_change_handlers[self.__current_mode]
             self.set_speed_all(ClockClock24.stepper_speed_stealth)
             self.set_accel_all(ClockClock24.stepper_accel_stealth)
     
     def __shortest_path(self, start: bool):
         if start:
-            self.clear_delay_queue()
-            self.clear_waiting_queue()
+            self.time_handler = self.time_change_handlers[self.__current_mode]
             self.set_speed_all(ClockClock24.stepper_speed_default)
             self.set_accel_all(ClockClock24.stepper_accel_default)
     
     def __visual(self, start: bool):
         if start:
-            self.clear_delay_queue()
-            self.clear_waiting_queue()
+            self.time_handler = self.time_change_handlers[self.__current_mode]
             self.set_speed_all(ClockClock24.stepper_speed_default)
             self.set_accel_all(ClockClock24.stepper_accel_default)
     
     def __analog(self, start: bool):
         if start:
-            self.clear_delay_queue()
-            self.clear_waiting_queue()
+            self.time_handler = self.time_change_handlers[self.__current_mode]
             self.set_speed_all(ClockClock24.stepper_speed_analog)
             self.set_accel_all(ClockClock24.stepper_accel_analog)
         
@@ -158,44 +169,14 @@ class ClockClock24:
         return
     
     def __stealth_new_time(self, hour: int, minute: int):
-        """New time handler for stealth display option (minimized movements)
-        gets called by display_time if this is the selected mode
-        
-        Parameters
-        ----------
-        hour : int
-            hour to display
-        minute : int
-            to display
-        """
         digits = [hour//10, hour%10, minute//10, minute%10]
         self.digit_display.display_digits(digits, DigitDisplay.animations["stealth"])
         
     def __shortest_path_new_time(self, hour: int, minute: int):
-        """New time handler for visual display option (choreography transitions)
-        gets called by display_time if this is the selected mode
-        
-        Parameters
-        ----------
-        hour : int
-            hour to display
-        minute : int
-            to display
-        """
         digits = [hour//10, hour%10, minute//10, minute%10]
         self.digit_display.display_digits(digits, DigitDisplay.animations["shortest path"])
         
     def __visual_new_time(self, hour: int, minute: int):
-        """New time handler for visual display option (choreography transitions)
-        gets called by display_time if this is the selected mode
-        
-        Parameters
-        ----------
-        hour : int
-            hour to display
-        minute : int
-            to display
-        """
         digits = [hour//10, hour%10, minute//10, minute%10]
         animation_indeces = [DigitDisplay.animations["extra revs"],
                              DigitDisplay.animations["straight wave"],
@@ -208,16 +189,6 @@ class ClockClock24:
         self.digit_display.display_digits(digits, random.choice(animation_indeces))
     
     def __analog_new_time(self, hour: int, minute: int):
-        """New time handler for analog display option (each clock is an analog clock)
-        gets called by display_time if this is the selected mode    
-        
-        Parameters
-        ----------
-        hour : int
-            hour to display
-        minute : int
-            to display
-        """
         for stepper in self.minute_steppers:
             stepper.move_to(int(self.steps_full_rev/60 * minute), 0)
             
