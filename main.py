@@ -45,6 +45,6 @@ while True:
         print("Change Mode")
         curr_mode = clockclock.get_mode()
         clockclock.set_mode((curr_mode + 1) % len(ClockClock24.modes))
-        time.sleep(0.01)#debounce
+        time.sleep(0.1)#debounce
     else:
         is_pressed = False
