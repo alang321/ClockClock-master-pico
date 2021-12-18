@@ -476,6 +476,7 @@ class DigitDisplay:
             
             self.hour_steppers[clk_index].move_to(int(start_pos_h), 0)
             self.minute_steppers[clk_index].move_to(int(start_pos_m), 0)
-            
-            self.clockclock.add_to_waiting_queue((self.new_pose_extra_revs,(new_positions_h, new_positions_m, direction, extra_revs)))
+        
+        #wait for move to be done    
+        self.clockclock.add_to_waiting_queue((self.new_pose_extra_revs,(new_positions_h, new_positions_m, direction, extra_revs)))
             
