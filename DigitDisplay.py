@@ -238,7 +238,7 @@ class DigitDisplay:
     def straight_wave_second_phase(self, new_positions_h, new_positions_m, direction: int, extra_revs: int):
         for col_index, col in enumerate(DigitDisplay.column_indices):
             for clk_index in col:
-                start_time = self.clockclock.get_start_time_ms(350*col_index)
+                start_time = self.clockclock.get_start_time_ms(int(350*col_index))
                 arguments = (new_positions_h[clk_index], direction, extra_revs)
                 function = self.hour_steppers[clk_index].move_to_extra_revs
                 item = (function, arguments, start_time)
@@ -324,11 +324,11 @@ class DigitDisplay:
             point_y = point[1]
             distance = abs(point_y - loc_y)
             
-            start_delays[col_index] = distance * delay_per_distance
+            start_delays[col_index] = int(distance * delay_per_distance)
         
         #so values start at 0
         min_delay = min(start_delays)
-        start_delays = [i - min_delay for i in start_delays]
+        start_delays = [int(i - min_delay) for i in start_delays]
                    
         for col_index, col in enumerate(DigitDisplay.column_indices):
             for clk_index in col:

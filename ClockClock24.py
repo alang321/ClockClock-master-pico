@@ -54,6 +54,7 @@ class ClockClock24:
         
     def run_delay_queue(self):
         rm_indices = [] # indices to be removed
+        
         for index, item in enumerate(self.delay_queue):
             if time.ticks_diff(item[2], time.ticks_ms()) <= 0: #if start time has cometh
                 rm_indices.append(index)
