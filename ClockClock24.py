@@ -130,6 +130,9 @@ class ClockClock24:
         self.__current_mode = mode
         self.time_handler = lambda : None # an empty time handler so a new time doesnt interrupt the displaying of the current mode
         
+        self.enable_disable_driver(True)
+        self.set_speed_all(ClockClock24.stepper_speed_fast)
+        self.set_accel_all(ClockClock24.stepper_accel_fast)
         self.digit_display.display_digits([0, 0, 0, self.__current_mode], DigitDisplay.animations["stealth"])
         
         self.add_to_waiting_queue((self.mode_change_handlers[self.__current_mode], (True,))) # specific initialisation of new mode after display of mode digit is done
