@@ -90,7 +90,7 @@ class DS3231_timekeeper:
             digits[0] += 1
             digits[0] = digits[0] % 3
             if digits[0] == 2:
-                digits[1] = min(digits[1], 4)    
+                digits[1] = min(digits[1], 3)    
         elif digit_index == 1:
             digits[1] += 1
             
@@ -124,7 +124,7 @@ class DS3231_timekeeper:
             if digits[0] == -1:
                 digits[0] = 2
             if digits[0] == 2:
-                digits[1] = min(digits[1], 4)    
+                digits[1] = min(digits[1], 3)    
         elif digit_index == 1:
             digits[1] -= 1
             if digits[0] == 2:
