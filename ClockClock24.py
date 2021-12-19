@@ -56,7 +56,7 @@ class ClockClock24:
                                      self.__shortest_path_new_time,
                                      self.__analog_new_time,
                                      self.__change_time_new_time,
-                                     self.__sleep_new_time]
+                                     self.__no_new_time]
         self.time_handler = None
         self.__current_mode = -1
         self.set_mode(mode)
@@ -128,7 +128,7 @@ class ClockClock24:
         self.clear_delay_queue()
         self.clear_waiting_queue()    
         self.__current_mode = mode
-        self.time_handler = lambda : None # an empty time handler so a new time doesnt interrupt the displaying of the current mode
+        self.time_handler = self.__no_new_time # an empty time handler so a new time doesnt interrupt the displaying of the current mode
         
         self.enable_disable_driver(True)
         self.set_speed_all(ClockClock24.stepper_speed_fast)
@@ -213,7 +213,7 @@ class ClockClock24:
         digits = [hour//10, hour%10, minute//10, minute%10]
         self.digit_display.display_digits(digits, DigitDisplay.animations["stealth"])
         
-    def __sleep_new_time(self, hour: int, minute: int):
+    def __no_new_time(self, hour: int, minute: int):
         return
         
     #commands
