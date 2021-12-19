@@ -33,7 +33,7 @@ class ClockClock24:
       }
     
     max_waiting_queue_size = 5
-    max_delay_queue_size = 48
+    max_delay_queue_size = 48 #one delayed item for every stepper
     
     def __init__(self, slave_adr_list: List[int], i2c_bus_list: List[machine.I2C], mode, steps_full_rev = 4320):
         self.steps_full_rev = steps_full_rev
@@ -122,6 +122,8 @@ class ClockClock24:
     def set_mode(self, mode: int):
         if self.__current_mode != -1:
             self.mode_change_handlers[self.__current_mode](False) # "destructor" of old mode
+            
+        print("New mode:",mode)
         
         self.clear_delay_queue()
         self.clear_waiting_queue()    
@@ -130,7 +132,7 @@ class ClockClock24:
         
         self.digit_display.display_digits([0, 0, 0, self.__current_mode], DigitDisplay.animations["stealth"])
         
-        self.add_to_waiting_queue((self.mode_change_handlers[self.__current_mode], (True))) # specific initialisation of new mode after display of mode digit is done
+        self.add_to_waiting_queue((self.mode_change_handlers[self.__current_mode], (True,))) # specific initialisation of new mode after display of mode digit is done
         
     def get_mode(self):
         return self.__current_mode
@@ -173,7 +175,7 @@ class ClockClock24:
             
             self.move_to_all(int(0.5*self.steps_full_rev))
             
-            self.add_to_waiting_queue((self.self.enable_disable_driver, (False)))
+            self.add_to_waiting_queue((self.enable_disable_driver, (False,)))
         else:
             self.enable_disable_driver(True)
     
