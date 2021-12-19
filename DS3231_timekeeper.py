@@ -44,7 +44,7 @@ class DS3231_timekeeper:
         if self.enable_minute_alarm:
             self.new_minute_handler()
 
-    def add_to_hour_minute(self, hour = 0, minute = 0):
+    def add_to_hour_minute(self, hour = 0, minute = 0, minutes_affect_hours = True):
         """
         pass positive or negative minutes or hour to add or subtract to current time, used for timesetting buttons
         sets seconds equal to 0
@@ -57,23 +57,23 @@ class DS3231_timekeeper:
         combined_minute = datetime.minute + minute
         
         if combined_minute >= 0:
-            combined_hour = combined_hour + combined_minute//60
+            if minutes_affect_hours:
+                combined_hour = combined_hour + combined_minute//60
             combined_minute = combined_minute % 60
         else:
             # (combined_minute + (-combined_minute%60))//60 -> "floor" towards zero for negative numbers
-            combined_hour = combined_hour + (combined_minute + (-combined_minute%60))//60
+            if minutes_affect_hours:
+                combined_hour = combined_hour + (combined_minute + (-combined_minute%60))//60
             combined_minute = combined_minute % -60
             if combined_minute < 0:
                 combined_minute = combined_minute + 60
                 if minutes_affect_hours:
                     combined_hour = combined_hour - 1
                 
-        if combined_hour >= 0:
-            combined_hour = combined_hour % 24
-        else:
-            combined_hour = combined_hour % -24
-            if combined_hour < 0:
-                combined_hour = combined_hour + 24
+        if combined_hour >= 24:
+            combined_hour = 0
+        elif combined_hour < 0:
+            combined_hour = 23
         
         self.set_hour_minute(combined_hour, combined_minute)
 

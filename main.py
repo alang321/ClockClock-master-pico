@@ -18,14 +18,16 @@ def cycle_mode():
 def increment_digit():
     # check if mode is time change
     if clockclock.get_mode() == ClockClock24.modes["change time"]:
-        rtc.increment_digit(current_field)
+        time_change_val = [[10, 0], [1, 0], [0, 10], [0, 1]]
+        rtc.add_to_hour_minute(time_change_val[current_field][0], time_change_val[current_field][1])
         hour, minute = rtc.get_hour_minute()
         clockclock.display_time(hour, minute)
         print("new time", hour, minute)
         
 def decrement_digit():
     if clockclock.get_mode() == ClockClock24.modes["change time"]:
-        rtc.decrement_digit(current_field)
+        time_change_val = [[-10, 0], [-1, 0], [0, -10], [0, -1]]
+        rtc.add_to_hour_minute(time_change_val[current_field][0], time_change_val[current_field][1])
         hour, minute = rtc.get_hour_minute()
         clockclock.display_time(hour, minute)
         print("new time", hour, minute)
