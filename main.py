@@ -15,6 +15,9 @@ def cycle_mode():
     clockclock.set_mode((curr_mode + 1) % len(ClockClock24.modes))
     print("Change Mode:", clockclock.get_mode())
     
+    global current_field
+    current_field = 3
+        
 def increment_digit():
     # check if mode is time change
     if clockclock.get_mode() == ClockClock24.modes["change time"]:
@@ -39,9 +42,8 @@ def cycle_field():
         current_field = current_field % 4
         print("Change Field:",current_field)
         
-        hour, minute = rtc.get_hour_minute()
-        digits = [hour//10, hour%10, minute//10, minute%10]
-        clockclock.digit_display.display_digit(current_field, digits[current_field], 1, 1)
+        for stepper_index in clockclock.digit_display.digit_display_indices[current_field]:
+            clockclock.swap(stepper_index)
     
 
 i2c1 = machine.I2C(1,sda=machine.Pin(14), scl=machine.Pin(3), freq=100000)

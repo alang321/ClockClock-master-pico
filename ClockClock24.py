@@ -71,6 +71,16 @@ class ClockClock24:
         self.clear_waiting_queue()
         self.time_handler(hour, minute)
         
+    def swap(self, index: int):
+        minute_pos = self.minute_steppers[index].current_target_pos
+        hour_pos = self.hour_steppers[index].current_target_pos
+        
+        if minute_pos == -1 or hour_pos == -1:
+            return
+        
+        self.minute_steppers[index].move_to(hour_pos, 0)
+        self.hour_steppers[index].move_to(minute_pos, 0)
+        
     def run(self):
         self.run_waiting_queue()
         self.run_delay_queue()
