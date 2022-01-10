@@ -42,8 +42,9 @@ def cycle_field():
         current_field = current_field % 4
         print("Change Field:",current_field)
         
-        for stepper_index in clockclock.digit_display.digit_display_indices[current_field]:
-            clockclock.swap(stepper_index)
+        for clk_index in clockclock.digit_display.digit_display_indices[current_field]:
+            clockclock.hour_steppers[clk_index].move(clockclock.steps_full_rev, 1)
+            clockclock.minute_steppers[clk_index].move(clockclock.steps_full_rev, -1)
     
 
 i2c1 = machine.I2C(1,sda=machine.Pin(14), scl=machine.Pin(3), freq=100000)

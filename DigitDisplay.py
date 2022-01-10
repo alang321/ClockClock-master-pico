@@ -64,7 +64,7 @@ class DigitDisplay:
       "opposites": 6, # simply rotate pointers in opposing directions to target
       "field lines":  7, # visualize electric vector field of 2 point charges
       "equipotential": 8, # visualises equipotential line directions of 2 point charges
-      #"speedy clock": 9, # move minute and hour hand at different speeds to give "illsuion" of clock, right nowmthi would have to be implemented fully blocking
+      "speedy clock": 9, # move minute and hour hand at different speeds to move somewhat like a clock althoug hour hand doesnt move as slow
       }
     
     def __init__(self, clockclock):
@@ -91,16 +91,15 @@ class DigitDisplay:
             self.new_pose_opposites,
             self.new_pose_field_lines,
             self.new_pose_equipotential,
+            self.new_pose_speedy_clock
           ]
         
         self.digits_pointer_pos_abs = [[[int(frac * self.steps_full_rev) for frac in hour_minute] for hour_minute in number] for number in DigitDisplay.digits_pointer_pos_frac]
-        
+    
     def display_digit(self, field, digit, direction, extra_revs = 0):
         """Display a single digit on the clock
         
         Parameters
-        ----------
-        field : int
             the field where the number should be displayed 0-4
         digit : int
             the number to display
@@ -479,4 +478,28 @@ class DigitDisplay:
         
         #wait for move to be done    
         self.clockclock.add_to_waiting_queue((self.new_pose_extra_revs,(new_positions_h, new_positions_m, direction, extra_revs)))
+    
+    def new_pose_speedy_clock(self, new_positions_h, new_positions_m):
+        """move minute and hour hand at different speeds to move somewhat like a clock althoug hour hand doesnt move as slow
+        
+        Parameters
+        ----------
+        new_positions_h : List[int]
+            the positions to display for hour steppers, should int arrays of length 24
+        new_positions_m : List[int]
+            the positions to display for hour steppers, should int arrays of length 24
+        extra_revs : int
+            optional parameter for extra revs
+        """
+        hour_speed = int(self.clockclock.current_speed * 0.33)
+        
+        for stepper in self.hour_steppers:
+            stepper.set_speed(hour_speed)
+            
+        for clk_index in range(24):
+            self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], 1, 1)
+            self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], 1, 3)
+        
+        #wait for move to be done then set speed back 
+        self.clockclock.add_to_waiting_queue((self.clockclock.set_speed_all, (self.clockclock.current_speed, )))
             

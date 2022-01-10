@@ -9,7 +9,7 @@ from ClockModule import ClockModule
 class ClockClock24:
     #fast speed used when showing mode numbers and similar
     stepper_speed_fast = 700
-    stepper_accel_fast = 250
+    stepper_accel_fast = 450
     
     #normal speed used in most modes
     stepper_speed_default = 585
@@ -59,6 +59,8 @@ class ClockClock24:
                                      self.__no_new_time]
         self.time_handler = None
         self.__current_mode = -1
+        self.current_speed = -1
+        self.current_accel = -1
         self.set_mode(mode)
         
     def display_digit(self, field: int, number: int, direction = 0, extra_revs = 0):
@@ -208,9 +210,11 @@ class ClockClock24:
                              DigitDisplay.animations["focus"],
                              DigitDisplay.animations["opposites"],
                              DigitDisplay.animations["field lines"],
-                             DigitDisplay.animations["equipotential"]]
+                             DigitDisplay.animations["equipotential"],
+                             DigitDisplay.animations["speedy clock"]]
         
-        self.digit_display.display_digits(digits, random.choice(animation_indeces))
+        self.digit_display.display_digits(digits, DigitDisplay.animations["speedy clock"])
+        #self.digit_display.display_digits(digits, random.choice(animation_indeces))
     
     def __analog_new_time(self, hour: int, minute: int):
         for stepper in self.minute_steppers:
@@ -236,10 +240,12 @@ class ClockClock24:
             module.enable_disable_driver_module(enable_disable)
     
     def set_speed_all(self, speed: int):
+        self.current_speed = speed
         for module in self.clock_modules:
             module.set_speed_module(speed)
     
     def set_accel_all(self, accel: int):
+        self.current_accel = accel
         for module in self.clock_modules:
             module.set_accel_module(accel)
     
