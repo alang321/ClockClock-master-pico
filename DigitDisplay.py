@@ -491,7 +491,7 @@ class DigitDisplay:
         extra_revs : int
             optional parameter for extra revs
         """
-        hour_speed = int(self.clockclock.current_speed * 0.33)
+        hour_speed = int(self.clockclock.current_speed * 0.4)
         
         for stepper in self.hour_steppers:
             stepper.set_speed(hour_speed)

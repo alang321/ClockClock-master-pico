@@ -213,8 +213,7 @@ class ClockClock24:
                              DigitDisplay.animations["equipotential"],
                              DigitDisplay.animations["speedy clock"]]
         
-        self.digit_display.display_digits(digits, DigitDisplay.animations["speedy clock"])
-        #self.digit_display.display_digits(digits, random.choice(animation_indeces))
+        self.digit_display.display_digits(digits, random.choice(animation_indeces))
     
     def __analog_new_time(self, hour: int, minute: int):
         for stepper in self.minute_steppers:
