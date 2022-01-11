@@ -33,120 +33,124 @@ class ClockModule: # module for 1 of the 6 pcbs in the clock
         
         try:
             self.i2c_bus.writeto(self.i2c_address, buffer)
-            self.is_driver_enabled = enable_disable
-                
-            return True
         except:
             if __debug__:
                 print("Slave not found:", self.i2c_address)
+                
             return False
+        
+        self.is_driver_enabled = enable_disable
+        return True
         
     def set_speed_module(self, speed: int) -> bool:
         buffer = pack("<BHb", self.cmd_id["set_speed"], speed, self.sub_stepper_id) #cmd_id uint8, speed uint16, stepper_id int8           
         
         try:
             self.i2c_bus.writeto(self.i2c_address, buffer)
-                
-            return True
         except:
             if __debug__:
                 print("Slave not found:", self.i2c_address)
+            
             return False
+                
+        return True
     
     def set_accel_module(self, accel: int) -> bool:
         buffer = pack("<BHb", self.cmd_id["set_accel"], accel, self.sub_stepper_id) #cmd_id uint8, accel uint16, stepper_id int8           
         
         try:
             self.i2c_bus.writeto(self.i2c_address, buffer)
-                
-            return True
         except:
             if __debug__:
                 print("Slave not found:", self.i2c_address)
+                
             return False
+    
+        return True
     
     def move_to_module(self, position: int, direction: int) -> bool:
         buffer = pack("<BHbb", self.cmd_id["moveTo"], position, direction, self.sub_stepper_id) #cmd_id uint8, position uint16, dir int8, stepper_id int8           
         
         try:
             self.i2c_bus.writeto(self.i2c_address, buffer)
-            
-            for stepper in self.steppers:
-                stepper.current_target_pos = position
-                
-            return True
         except:
             if __debug__:
                 print("Slave not found:", self.i2c_address)
             return False
+            
+        for stepper in self.steppers:
+            stepper.current_target_pos = position
+            
+        return True
     
     def move_to_extra_revs_module(self, position: int, direction: int, extra_revs: int) -> bool:
         buffer = pack("<BHbBb", self.cmd_id["moveTo_extra_revs"], position, direction, extra_revs, self.sub_stepper_id) #cmd_id uint8, position uint16, dir int8, extra_revs uint8, stepper_id int8           
         
         try:
             self.i2c_bus.writeto(self.i2c_address, buffer)
-            
-            for stepper in self.steppers:
-                stepper.current_target_pos = position
-                
-            return True
         except:
             if __debug__:
                 print("Slave not found:", self.i2c_address)
             return False
+            
+        for stepper in self.steppers:
+            stepper.current_target_pos = position
+            
+        return True
     
     def move_module(self, distance: int, direction: int) -> bool:
         buffer = pack("<BHbb", self.cmd_id["move"], distance, direction, self.sub_stepper_id) #cmd_id uint8, distance uint16, dir int8, stepper_id int8
         
         try:
             self.i2c_bus.writeto(self.i2c_address, buffer)
-            
-            for stepper in self.steppers:
-                relative = (distance * direction) % self.steps_full_rev
-            
-                stepper.current_target_pos = (self.steps_full_rev + stepper.current_target_pos + relative) % self.steps_full_rev
-                
-            return True
         except:
             if __debug__:
                 print("Slave not found:", self.i2c_address)
             return False
+            
+        for stepper in self.steppers:
+            relative = (distance * direction) % self.steps_full_rev
+        
+            stepper.current_target_pos = (self.steps_full_rev + stepper.current_target_pos + relative) % self.steps_full_rev
+            
+        return True
         
     def stop_module(self) -> bool:
         buffer = pack("<Bb", self.cmd_id["stop"], self.sub_stepper_id) #cmd_id uint8, stepper_id int8           
         
         try:
             self.i2c_bus.writeto(self.i2c_address, buffer)
-            
-            for stepper in self.steppers:
-                stepper.current_target_pos = -1
-                
-            return True
         except:
             if __debug__:
                 print("Slave not found:", self.i2c_address)
             return False
+            
+        for stepper in self.steppers:
+            stepper.current_target_pos = -1
+            
+        return True
     
     def falling_pointer_module(self) -> bool:
         buffer = pack("<Bb", self.cmd_id["falling_pointer"], self.sub_stepper_id) #cmd_id uint8, stepper_id int8           
         
         try:
             self.i2c_bus.writeto(self.i2c_address, buffer)
-            return True
         except:
             if __debug__:
                 print("Slave not found:", self.i2c_address)
             return False
+        
+        return True
     
     def is_running_module(self) -> bool: #returns True if stepper is running
         try:
             buffer = self.i2c_bus.readfrom(self.i2c_address, 1)
-            
-            return (buffer[0] != 0)
         except:
             if __debug__:
                 print("Slave not found:", self.i2c_address)
             return False
+            
+        return (buffer[0] != 0)
         
 
 class ClockStepper:
@@ -193,102 +197,100 @@ class ClockStepper:
         
         try:
             self.module.i2c_bus.writeto(self.module.i2c_address, buffer)
-            
-            return True
         except:
             if __debug__:
                 print("Slave not found:", self.module.i2c_address)
             return False
+            
+        return True
     
     def set_accel(self, accel: int) -> bool:
         buffer = pack("<BHb", self.cmd_id["set_accel"], accel, self.sub_stepper_id) #cmd_id uint8, accel uint16, stepper_id int8           
         
         try:
             self.module.i2c_bus.writeto(self.module.i2c_address, buffer)
-            
-            return True
         except:
             if __debug__:
                 print("Slave not found:", self.module.i2c_address)
             return False
+            
+        return True
     
     def move_to(self, position: int, direction: int) -> bool:
         buffer = pack("<BHbb", self.cmd_id["moveTo"], position, direction, self.sub_stepper_id) #cmd_id uint8, position uint16, dir int8, stepper_id int8           
         
         try:
             self.module.i2c_bus.writeto(self.module.i2c_address, buffer)
-            self.current_target_pos = position
-            
-            return True
         except:
             if __debug__:
                 print("Slave not found:", self.module.i2c_address)
             return False
+        
+        self.current_target_pos = position
+        return True
     
     def move_to_extra_revs(self, position: int, direction: int, extra_revs: int) -> bool:
         buffer = pack("<BHbBb", self.cmd_id["moveTo_extra_revs"], position, direction, extra_revs, self.sub_stepper_id) #cmd_id uint8, position uint16, dir int8, extra_revs uint8, stepper_id int8           
         
         try:
             self.module.i2c_bus.writeto(self.module.i2c_address, buffer)
-            self.current_target_pos = position
-            
-            return True
         except:
             if __debug__:
                 print("Slave not found:", self.module.i2c_address)
             return False
+        
+        self.current_target_pos = position
+        return True
     
     def move(self, distance: int, direction: int) -> bool:
         buffer = pack("<BHbb", self.cmd_id["move"], distance, direction, self.sub_stepper_id) #cmd_id uint8, distance uint16, dir int8, stepper_id int8           
         
         try:
             self.module.i2c_bus.writeto(self.module.i2c_address, buffer)
-            
-            relative = (distance * direction) % self.steps_per_rev
-            
-            self.current_target_pos = (self.steps_per_rev + self.current_target_pos + relative) % self.steps_per_rev
-            
-            return True
         except:
             if __debug__:
                 print("Slave not found:", self.module.i2c_address)
             return False
+            
+        relative = (distance * direction) % self.steps_per_rev
+        self.current_target_pos = (self.steps_per_rev + self.current_target_pos + relative) % self.steps_per_rev
+        return True
         
     def stop(self) -> bool:
         buffer = pack("<Bb", self.cmd_id["stop"], self.sub_stepper_id) #cmd_id uint8, stepper_id int8     
         
         try:
-            self.module.i2c_bus.writeto(self.module.i2c_address, buffer)      
-            self.current_target_pos = -1
-            
-            return True
+            self.module.i2c_bus.writeto(self.module.i2c_address, buffer)  
         except:
             if __debug__:
                 print("Slave not found:", self.module.i2c_address)
             return False
+        
+        self.current_target_pos = -1
+        return True
     
     def falling_pointer(self) -> bool:
         buffer = pack("<Bb", self.cmd_id["falling_pointer"], self.sub_stepper_id) #cmd_id uint8, stepper_id int8   
         
         try:
-            self.module.i2c_bus.writeto(self.module.i2c_address, buffer)          
-            self.current_target_pos = int(0.5 * self.steps_per_rev)
-            
-            return True
+            self.module.i2c_bus.writeto(self.module.i2c_address, buffer) 
         except:
             if __debug__:
                 print("Slave not found:", self.module.i2c_address)
             return False
+        
+        self.current_target_pos = int(0.5 * self.steps_per_rev)
+        return True
     
     def is_running(self) -> bool: #returns True if stepper is running
         try:
             buffer = self.module.i2c_bus.readfrom(self.module.i2c_address, 1)
-            
-            return ((1 << self.sub_stepper_id) & buffer[0] != 0)
         except:
             if __debug__:
                 print("Slave not found:", self.module.i2c_address)
             return False
+            
+        return ((1 << self.sub_stepper_id) & buffer[0] != 0)
     
 
 
