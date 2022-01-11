@@ -1,4 +1,4 @@
-from ClockStepper import ClockStepper
+from ClockStepperModule import ClockStepper
 import math
 import time
 import random

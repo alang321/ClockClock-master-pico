@@ -2,9 +2,9 @@ import machine
 import time
 import random
 import ucollections
-from ClockStepper import ClockStepper
+from ClockStepperModule import ClockStepper
+from ClockStepperModule import ClockModule
 from DigitDisplay import DigitDisplay
-from ClockModule import ClockModule
 
 class ClockClock24:
     #fast speed used when showing mode numbers and similar
