@@ -5,7 +5,8 @@ from DS3231_timekeeper import DS3231_timekeeper
 
 #interrupt
 def new_minute_handler():
-    print("Interrupt received")
+    if __debug__:
+        print("Interrupt received")
     global alarm_flag
     alarm_flag = True
 
@@ -13,7 +14,6 @@ def new_minute_handler():
 def cycle_mode():
     curr_mode = clockclock.get_mode()
     clockclock.set_mode((curr_mode + 1) % len(ClockClock24.modes))
-    print("Change Mode:", clockclock.get_mode())
     
     global current_field
     current_field = 3
@@ -25,7 +25,9 @@ def increment_digit():
         rtc.add_to_hour_minute(time_change_val[current_field][0], time_change_val[current_field][1])
         hour, minute = rtc.get_hour_minute()
         clockclock.display_time(hour, minute)
-        print("new time", hour, minute)
+        
+        if __debug__:
+            print("New time:", hour, minute)
         
 def decrement_digit():
     if clockclock.get_mode() == ClockClock24.modes["change time"]:
@@ -33,19 +35,22 @@ def decrement_digit():
         rtc.add_to_hour_minute(time_change_val[current_field][0], time_change_val[current_field][1])
         hour, minute = rtc.get_hour_minute()
         clockclock.display_time(hour, minute)
-        print("new time", hour, minute)
+        
+        if __debug__:
+            print("New time:", hour, minute)
     
 def cycle_field():
     if clockclock.get_mode() == ClockClock24.modes["change time"]:
         global current_field
         current_field -= 1
         current_field = current_field % 4
-        print("Change Field:",current_field)
+        
+        if __debug__:
+            print("Changed Field:",current_field)
         
         for clk_index in clockclock.digit_display.digit_display_indices[current_field]:
             clockclock.hour_steppers[clk_index].move(clockclock.steps_full_rev, 1)
             clockclock.minute_steppers[clk_index].move(clockclock.steps_full_rev, -1)
-    
 
 i2c1 = machine.I2C(1,sda=machine.Pin(14), scl=machine.Pin(3), freq=100000)
 i2c0 = machine.I2C(0,sda=machine.Pin(16), scl=machine.Pin(17), freq=100000)

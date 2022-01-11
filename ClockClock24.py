@@ -32,11 +32,24 @@ class ClockClock24:
       "sleep": 5 # move all steppers to 6 o clock (default) position and disable stepper drivers
       }
     
+    
     max_waiting_queue_size = 5
     max_delay_queue_size = 48 #one delayed item for every stepper
     
     def __init__(self, slave_adr_list: List[int], i2c_bus_list: List[machine.I2C], mode, steps_full_rev = 4320):
         self.steps_full_rev = steps_full_rev
+        
+        
+        self.visual_animation_ids = [DigitDisplay.animations["extra revs"], #these get shuffled randomly when ever at end of list
+                                     DigitDisplay.animations["straight wave"],
+                                     DigitDisplay.animations["opposing pointers"],
+                                     DigitDisplay.animations["focus"],
+                                     DigitDisplay.animations["opposites"],
+                                     DigitDisplay.animations["field lines"],
+                                     DigitDisplay.animations["equipotential"],
+                                     DigitDisplay.animations["speedy clock"]]
+        self.random_shuffle(self.visual_animation_ids)
+        self.animation_index = 0
         
         #tuples of format: ["function", "arguments"
         self.waiting_queue = [] # a queue where the items get called when the current move is done
@@ -134,8 +147,9 @@ class ClockClock24:
     def set_mode(self, mode: int):
         if self.__current_mode != -1:
             self.mode_change_handlers[self.__current_mode](False) # "destructor" of old mode
-            
-        print("New mode:",mode)
+        
+        if __debug__:
+            print("New mode:",mode)
         
         self.clear_delay_queue()
         self.clear_waiting_queue()    
@@ -204,16 +218,17 @@ class ClockClock24:
         
     def __visual_new_time(self, hour: int, minute: int):
         digits = [hour//10, hour%10, minute//10, minute%10]
-        animation_indeces = [DigitDisplay.animations["extra revs"],
-                             DigitDisplay.animations["straight wave"],
-                             DigitDisplay.animations["opposing pointers"],
-                             DigitDisplay.animations["focus"],
-                             DigitDisplay.animations["opposites"],
-                             DigitDisplay.animations["field lines"],
-                             DigitDisplay.animations["equipotential"],
-                             DigitDisplay.animations["speedy clock"]]
         
-        self.digit_display.display_digits(digits, random.choice(animation_indeces))
+        if __debug__:
+            print("animation id:", self.visual_animation_ids[self.animation_index])
+            
+        self.digit_display.display_digits(digits, self.visual_animation_ids[self.animation_index])
+        
+        self.animation_index += 1
+        
+        if self.animation_index == len(self.visual_animation_ids):
+            self.animation_index = 0
+            self.random_shuffle(self.visual_animation_ids)     
     
     def __analog_new_time(self, hour: int, minute: int):
         for stepper in self.minute_steppers:
@@ -230,43 +245,75 @@ class ClockClock24:
         return
         
     #commands
-    def enable_disable_driver(self, enable_disable: bool):
+    def enable_disable_driver(self, enable_disable: bool) -> bool:
         """
         true to enable driver of module
         false to disable
         """
+        all_slaves_found = True
+        
         for module in self.clock_modules:
-            module.enable_disable_driver_module(enable_disable)
+            all_slaves_found = all_slaves_found and module.enable_disable_driver_module(enable_disable)
+                
+        return all_slaves_found
     
-    def set_speed_all(self, speed: int):
+    def set_speed_all(self, speed: int) -> bool:
+        all_slaves_found = True
+        
         self.current_speed = speed
         for module in self.clock_modules:
-            module.set_speed_module(speed)
+            all_slaves_found = all_slaves_found and module.set_speed_module(speed)
+                
+        return all_slaves_found
     
-    def set_accel_all(self, accel: int):
+    def set_accel_all(self, accel: int) -> bool:
+        all_slaves_found = True
+        
         self.current_accel = accel
         for module in self.clock_modules:
-            module.set_accel_module(accel)
+            all_slaves_found = all_slaves_found and module.set_accel_module(accel)
+                
+        return all_slaves_found
     
-    def move_to_all(self, position: int, direction = 0):
-        for module in self.clock_modules:
-            module.move_to_module(position, direction)
-    
-    def move_to_extra_revs_all(self, position: int, direction: int, extra_revs: int):
-        for module in self.clock_modules:
-            module.move_to_extra_revs_module(position, direction, extra_revs)
-    
-    def move_all(self, distance: int, direction: int):
-        for module in self.clock_modules:
-            module.move_module(distance, direction)
+    def move_to_all(self, position: int, direction = 0) -> bool:
+        all_slaves_found = True
         
-    def stop_all(self):
         for module in self.clock_modules:
-            module.stop_module()
+            all_slaves_found = all_slaves_found and module.move_to_module(position, direction)
+                
+        return all_slaves_found
     
-    def falling_pointer(self):
+    def move_to_extra_revs_all(self, position: int, direction: int, extra_revs: int) -> bool:
+        all_slaves_found = True
+        
         for module in self.clock_modules:
-            module.falling_pointer_module()
+            all_slaves_found = all_slaves_found and module.move_to_extra_revs_module(position, direction, extra_revs)
+                
+        return all_slaves_found
+    
+    def move_all(self, distance: int, direction: int) -> bool:
+        all_slaves_found = True
+        
+        for module in self.clock_modules:
+            all_slaves_found = all_slaves_found and module.move_module(distance, direction)
+                
+        return all_slaves_found
+        
+    def stop_all(self) -> bool:
+        all_slaves_found = True
+        
+        for module in self.clock_modules:
+            all_slaves_found = all_slaves_found and module.stop_module()
+                
+        return all_slaves_found
+    
+    def falling_pointer(self) -> bool:
+        all_slaves_found = True
+        
+        for module in self.clock_modules:
+            all_slaves_found = all_slaves_found and module.falling_pointer_module()
+                
+        return all_slaves_found
 
     def is_running(self) -> bool: #returns True if stepper is running
         for module in self.clock_modules:
@@ -274,4 +321,11 @@ class ClockClock24:
                 return True
         
         return False
+    
+    @staticmethod
+    def random_shuffle(seq):
+        l = len(seq)
+        for i in range(l):
+            j = random.randrange(l)
+            seq[i], seq[j] = seq[j], seq[i]
     
