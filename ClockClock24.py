@@ -39,7 +39,6 @@ class ClockClock24:
     def __init__(self, slave_adr_list: List[int], i2c_bus_list: List[machine.I2C], mode, steps_full_rev = 4320):
         self.steps_full_rev = steps_full_rev
         
-        
         self.visual_animation_ids = [DigitDisplay.animations["extra revs"], #these get shuffled randomly when ever at end of list
                                      DigitDisplay.animations["straight wave"],
                                      DigitDisplay.animations["opposing pointers"],
@@ -166,47 +165,39 @@ class ClockClock24:
     def get_mode(self):
         return self.__current_mode
     
-    def __stealth(self, start: bool):
-        if start:
-            self.time_handler = self.time_change_handlers[self.__current_mode]
-            self.set_speed_all(ClockClock24.stepper_speed_stealth)
-            self.set_accel_all(ClockClock24.stepper_accel_stealth)
+    def __stealth(self):
+        self.time_handler = self.time_change_handlers[self.__current_mode]
+        self.set_speed_all(ClockClock24.stepper_speed_stealth)
+        self.set_accel_all(ClockClock24.stepper_accel_stealth)
     
-    def __shortest_path(self, start: bool):
-        if start:
-            self.time_handler = self.time_change_handlers[self.__current_mode]
-            self.set_speed_all(ClockClock24.stepper_speed_default)
-            self.set_accel_all(ClockClock24.stepper_accel_default)
+    def __shortest_path(self):
+        self.time_handler = self.time_change_handlers[self.__current_mode]
+        self.set_speed_all(ClockClock24.stepper_speed_default)
+        self.set_accel_all(ClockClock24.stepper_accel_default)
     
     def __visual(self, start: bool):
-        if start:
-            self.time_handler = self.time_change_handlers[self.__current_mode]
-            self.set_speed_all(ClockClock24.stepper_speed_default)
-            self.set_accel_all(ClockClock24.stepper_accel_default)
+        self.time_handler = self.time_change_handlers[self.__current_mode]
+        self.set_speed_all(ClockClock24.stepper_speed_default)
+        self.set_accel_all(ClockClock24.stepper_accel_default)
     
-    def __analog(self, start: bool):
-        if start:
-            self.time_handler = self.time_change_handlers[self.__current_mode]
-            self.set_speed_all(ClockClock24.stepper_speed_analog)
-            self.set_accel_all(ClockClock24.stepper_accel_analog)
+    def __analog(self):
+        self.time_handler = self.time_change_handlers[self.__current_mode]
+        self.set_speed_all(ClockClock24.stepper_speed_analog)
+        self.set_accel_all(ClockClock24.stepper_accel_analog)
     
-    def __change_time(self, start: bool):
-        if start:
-            self.time_handler = self.time_change_handlers[self.__current_mode]
-            self.set_speed_all(ClockClock24.stepper_speed_fast)
-            self.set_accel_all(ClockClock24.stepper_accel_fast)
+    def __change_time(self):
+        self.time_handler = self.time_change_handlers[self.__current_mode]
+        self.set_speed_all(ClockClock24.stepper_speed_fast)
+        self.set_accel_all(ClockClock24.stepper_accel_fast)
         
-    def __sleep(self, start: bool):
-        if start:
-            self.time_handler = self.time_change_handlers[self.__current_mode]
-            self.set_speed_all(ClockClock24.stepper_speed_default)
-            self.set_accel_all(ClockClock24.stepper_accel_default)
-            
-            self.move_to_all(int(0.5*self.steps_full_rev))
-            
-            self.add_to_waiting_queue((self.enable_disable_driver, (False,)))
-        else:
-            self.enable_disable_driver(True)
+    def __sleep(self):
+        self.time_handler = self.time_change_handlers[self.__current_mode]
+        self.set_speed_all(ClockClock24.stepper_speed_default)
+        self.set_accel_all(ClockClock24.stepper_accel_default)
+        
+        self.move_to_all(int(0.5*self.steps_full_rev))
+        
+        self.add_to_waiting_queue((self.enable_disable_driver, (False,)))
     
     def __stealth_new_time(self, hour: int, minute: int):
         digits = [hour//10, hour%10, minute//10, minute%10]
