@@ -32,10 +32,6 @@ class ClockClock24:
       "sleep": 5 # move all steppers to 6 o clock (default) position and disable stepper drivers
       }
     
-    
-    max_waiting_queue_size = 5
-    max_delay_queue_size = 48 #one delayed item for every stepper
-    
     def __init__(self, slave_adr_list: List[int], i2c_bus_list: List[machine.I2C], mode, steps_full_rev = 4320):
         self.steps_full_rev = steps_full_rev
         
@@ -196,8 +192,6 @@ class ClockClock24:
         self.set_accel_all(ClockClock24.stepper_accel_default)
         
         self.move_to_all(int(0.5*self.steps_full_rev))
-        
-        self.add_to_waiting_queue((self.enable_disable_driver, (False,)))
     
     def __stealth_new_time(self, hour: int, minute: int):
         digits = [hour//10, hour%10, minute//10, minute%10]
@@ -236,75 +230,43 @@ class ClockClock24:
         return
         
     #commands
-    def enable_disable_driver(self, enable_disable: bool) -> bool:
+    def enable_disable_driver(self, enable_disable: bool):
         """
         true to enable driver of module
         false to disable
         """
-        all_slaves_found = True
-        
         for module in self.clock_modules:
-            all_slaves_found = all_slaves_found and module.enable_disable_driver_module(enable_disable)
-                
-        return all_slaves_found
+            module.enable_disable_driver_module(enable_disable)
     
-    def set_speed_all(self, speed: int) -> bool:
-        all_slaves_found = True
-        
+    def set_speed_all(self, speed: int):
         self.current_speed = speed
         for module in self.clock_modules:
-            all_slaves_found = all_slaves_found and module.set_speed_module(speed)
-                
-        return all_slaves_found
+            module.set_speed_module(speed)
     
-    def set_accel_all(self, accel: int) -> bool:
-        all_slaves_found = True
-        
+    def set_accel_all(self, accel: int):
         self.current_accel = accel
         for module in self.clock_modules:
-            all_slaves_found = all_slaves_found and module.set_accel_module(accel)
-                
-        return all_slaves_found
+            module.set_accel_module(accel)
     
-    def move_to_all(self, position: int, direction = 0) -> bool:
-        all_slaves_found = True
-        
+    def move_to_all(self, position: int, direction = 0):
         for module in self.clock_modules:
-            all_slaves_found = all_slaves_found and module.move_to_module(position, direction)
-                
-        return all_slaves_found
+            module.move_to_module(position, direction)
     
-    def move_to_extra_revs_all(self, position: int, direction: int, extra_revs: int) -> bool:
-        all_slaves_found = True
-        
+    def move_to_extra_revs_all(self, position: int, direction: int, extra_revs: int):
         for module in self.clock_modules:
-            all_slaves_found = all_slaves_found and module.move_to_extra_revs_module(position, direction, extra_revs)
-                
-        return all_slaves_found
+            module.move_to_extra_revs_module(position, direction, extra_revs)
     
-    def move_all(self, distance: int, direction: int) -> bool:
-        all_slaves_found = True
-        
+    def move_all(self, distance: int, direction: int):
         for module in self.clock_modules:
-            all_slaves_found = all_slaves_found and module.move_module(distance, direction)
-                
-        return all_slaves_found
+            module.move_module(distance, direction)
         
-    def stop_all(self) -> bool:
-        all_slaves_found = True
-        
+    def stop_all(self):
         for module in self.clock_modules:
-            all_slaves_found = all_slaves_found and module.stop_module()
-                
-        return all_slaves_found
-    
-    def falling_pointer(self) -> bool:
-        all_slaves_found = True
-        
+            module.stop_module()
+
+    def falling_pointer(self): 
         for module in self.clock_modules:
-            all_slaves_found = all_slaves_found and module.falling_pointer_module()
-                
-        return all_slaves_found
+            module.falling_pointer_module()
 
     def is_running(self) -> bool: #returns True if stepper is running
         for module in self.clock_modules:

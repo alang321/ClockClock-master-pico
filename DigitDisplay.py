@@ -2,6 +2,7 @@ from ClockStepperModule import ClockStepper
 import math
 import time
 import random
+import uasync
 
 class DigitDisplay:
     """
