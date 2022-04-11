@@ -5,6 +5,7 @@ import ucollections
 from ClockStepperModule import ClockStepper
 from ClockStepperModule import ClockModule
 from DigitDisplay import DigitDisplay
+import uasyncio as asyncio
 
 class ClockClock24:
     #fast speed used when showing mode numbers and similar
@@ -32,7 +33,7 @@ class ClockClock24:
       "sleep": 5 # move all steppers to 6 o clock (default) position and disable stepper drivers
       }
     
-    def __init__(self, slave_adr_list: List[int], i2c_bus_list: List[machine.I2C], mode, steps_full_rev = 4320):
+    def __init__(self, slave_adr_list, i2c_bus_list, mode, steps_full_rev = 4320):
         self.steps_full_rev = steps_full_rev
         
         self.visual_animation_ids = [DigitDisplay.animations["extra revs"], #these get shuffled randomly when ever at end of list
@@ -45,11 +46,12 @@ class ClockClock24:
                                      DigitDisplay.animations["speedy clock"]]
         self.random_shuffle(self.visual_animation_ids)
         self.animation_index = 0
-        
-        #tuples of format: ["function", "arguments"
-        self.waiting_queue = [] # a queue where the items get called when the current move is done
-        #tuples of format: ["function", "arguments", "start_time"]
-        self.delay_queue = [] # a queue where the items get called when the current move is done
+
+        #asyncio
+        self.async_display_task = None  # currently running asynchronous task that has to be cancelled
+        self.async_mode_change_task = None  # currently running asynchronous task that has to be cancelled
+
+        self.movement_done_event = asyncio.Event()
         
         self.clock_modules = [ClockModule(i2c_bus_list[module_index], slave_adr_list[module_index], steps_full_rev) for module_index in range(len(slave_adr_list))]
         
@@ -70,15 +72,21 @@ class ClockClock24:
         self.current_speed = -1
         self.current_accel = -1
         self.set_mode(mode)
+
+    def cancel_tasks(self):
+        self.async_display_task.cancel()
+        self.async_mode_change_task.cancel()
+
+    async def run(self):
+        if not self.is_running():
+            self.movement_done_event.set()
+        await asyncio.sleep(0)
         
-    def display_digit(self, field: int, number: int, direction = 0, extra_revs = 0):
-        self.clear_delay_queue()
-        self.clear_waiting_queue()
+    def display_digit(self, field: int, number: int, direction=0, extra_revs=0):
+        self.cancel_tasks()
         self.digit_display.display_digit(field, number, direction, extra_revs)
     
     def display_time(self, hour: int, minute: int):
-        self.clear_delay_queue()
-        self.clear_waiting_queue()
         self.time_handler(hour, minute)
         
     def swap(self, index: int):
@@ -90,64 +98,15 @@ class ClockClock24:
         
         self.minute_steppers[index].move_to(hour_pos, 0)
         self.hour_steppers[index].move_to(minute_pos, 0)
-        
-    def run(self):
-        self.run_waiting_queue()
-        self.run_delay_queue()
-        
-    def run_delay_queue(self):
-        rm_indices = [] # indices to be removed
-        
-        for index, item in enumerate(self.delay_queue):
-            if time.ticks_diff(item[2], time.ticks_ms()) <= 0: #if start time has cometh
-                rm_indices.append(index)
-                item[0](*item[1])
-                
-        for index in reversed(rm_indices):
-            del self.delay_queue[index]
-                
-    def clear_delay_queue(self):
-        self.delay_queue.clear()
-        
-    def add_to_delay_queue(self, queue_item) -> bool:
-        if len(self.delay_queue) < ClockClock24.max_delay_queue_size:
-            self.delay_queue.append(queue_item)
-            return True
-        return False
-        
-    def get_start_time_ms(self, delay_ms: int) -> int:
-        """
-        get start time corresponding to a certain delay from now in milliseconds
-        """
-        return int(time.ticks_add(time.ticks_ms(), delay_ms))
-        
-    def run_waiting_queue(self):
-        """
-        calls a function with given args in queue if the current move is finished, ie. when self.is_running returns false
-        """
-        if self.waiting_queue:
-            if not self.is_running():
-                item = self.waiting_queue.pop(0)
-                item[0](*item[1])
-            
-    def clear_waiting_queue(self):
-        self.waiting_queue.clear()
-        
-    def add_to_waiting_queue(self, queue_item) -> bool:
-        if len(self.waiting_queue) < ClockClock24.max_waiting_queue_size:
-            self.waiting_queue.append(queue_item)
-            return True
-        return False
-        
+
     def set_mode(self, mode: int):
-        if self.__current_mode != -1:
-            self.mode_change_handlers[self.__current_mode](False) # "destructor" of old mode
+        self.async_mode_change_task = asyncio.create_task(self.__set_mode(mode))
         
+    async def __set_mode(self, mode: int):
         if __debug__:
-            print("New mode:",mode)
+            print("New mode:", mode)
         
-        self.clear_delay_queue()
-        self.clear_waiting_queue()    
+        self.cancel_tasks()
         self.__current_mode = mode
         self.time_handler = self.__no_new_time # an empty time handler so a new time doesnt interrupt the displaying of the current mode
         
@@ -155,8 +114,11 @@ class ClockClock24:
         self.set_speed_all(ClockClock24.stepper_speed_fast)
         self.set_accel_all(ClockClock24.stepper_accel_fast)
         self.digit_display.display_digits([0, 0, 0, self.__current_mode], DigitDisplay.animations["stealth"])
-        
-        self.add_to_waiting_queue((self.mode_change_handlers[self.__current_mode], (True,))) # specific initialisation of new mode after display of mode digit is done
+
+        await self.movement_done_event.wait()
+        self.movement_done_event.clear()
+
+        self.mode_change_handlers[self.__current_mode]() # specific initialisation of new mode after display of mode digit is done
         
     def get_mode(self):
         return self.__current_mode
@@ -171,7 +133,7 @@ class ClockClock24:
         self.set_speed_all(ClockClock24.stepper_speed_default)
         self.set_accel_all(ClockClock24.stepper_accel_default)
     
-    def __visual(self, start: bool):
+    def __visual(self):
         self.time_handler = self.time_change_handlers[self.__current_mode]
         self.set_speed_all(ClockClock24.stepper_speed_default)
         self.set_accel_all(ClockClock24.stepper_accel_default)
@@ -194,14 +156,17 @@ class ClockClock24:
         self.move_to_all(int(0.5*self.steps_full_rev))
     
     def __stealth_new_time(self, hour: int, minute: int):
+        self.cancel_tasks()
         digits = [hour//10, hour%10, minute//10, minute%10]
         self.digit_display.display_digits(digits, DigitDisplay.animations["stealth"])
         
     def __shortest_path_new_time(self, hour: int, minute: int):
+        self.cancel_tasks()
         digits = [hour//10, hour%10, minute//10, minute%10]
         self.digit_display.display_digits(digits, DigitDisplay.animations["shortest path"])
         
     def __visual_new_time(self, hour: int, minute: int):
+        self.cancel_tasks()
         digits = [hour//10, hour%10, minute//10, minute%10]
         
         if __debug__:
@@ -216,6 +181,7 @@ class ClockClock24:
             self.random_shuffle(self.visual_animation_ids)     
     
     def __analog_new_time(self, hour: int, minute: int):
+        self.cancel_tasks()
         for stepper in self.minute_steppers:
             stepper.move_to(int(self.steps_full_rev/60 * minute), 0)
             
@@ -223,6 +189,7 @@ class ClockClock24:
             stepper.move_to(int(self.steps_full_rev/12 * (hour%12 + minute/60)), 0)
     
     def __change_time_new_time(self, hour: int, minute: int):
+        self.cancel_tasks()
         digits = [hour//10, hour%10, minute//10, minute%10]
         self.digit_display.display_digits(digits, DigitDisplay.animations["stealth"])
         

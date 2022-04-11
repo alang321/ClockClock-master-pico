@@ -2,6 +2,7 @@ import machine
 import time
 from ClockClock24 import ClockClock24
 from DS3231_timekeeper import DS3231_timekeeper
+import uasyncio as asyncio
 
 #interrupt
 def new_minute_handler():
@@ -46,11 +47,34 @@ def cycle_field():
         current_field = current_field % 4
         
         if __debug__:
-            print("Changed Field:",current_field)
+            print("Changed Field:", current_field)
         
         for clk_index in clockclock.digit_display.digit_display_indices[current_field]:
             clockclock.hour_steppers[clk_index].move(clockclock.steps_full_rev, 1)
             clockclock.minute_steppers[clk_index].move(clockclock.steps_full_rev, -1)
+
+#main loop
+async def main_loop():
+    while True:
+        if alarm_flag:
+            alarm_flag = False
+            hour, minute = rtc.get_hour_minute()
+            clockclock.display_time(hour, minute)
+
+        asyncio.run(clockclock.run())
+
+        do_debounce = False
+        for but_index, button in enumerate(buttons):
+            if button.value() == 0 and not is_pressed[but_index]:
+                is_pressed[but_index] = True
+                button_down_handler[but_index]()
+                do_debounce = True
+            elif button.value() == 1 and is_pressed[but_index]:
+                do_debounce = True
+                is_pressed[but_index] = False
+
+        if do_debounce:
+            time.sleep(0.01)  # debounce
 
 i2c1 = machine.I2C(1,sda=machine.Pin(14), scl=machine.Pin(3), freq=100000)
 i2c0 = machine.I2C(0,sda=machine.Pin(16), scl=machine.Pin(17), freq=100000)
@@ -82,26 +106,4 @@ current_field = 3 # right most digit
 
 rtc = DS3231_timekeeper(new_minute_handler, 13, i2c1)
 
-while True:
-    if alarm_flag:
-        alarm_flag = False
-        hour, minute = rtc.get_hour_minute()
-        clockclock.display_time(hour, minute)
-        
-    clockclock.run()
-    
-    do_debounce = False
-    for but_index, button in enumerate(buttons):
-        if button.value() == 0 and not is_pressed[but_index]:
-            is_pressed[but_index] = True
-            button_down_handler[but_index]()
-            do_debounce = True
-        elif button.value() == 1 and is_pressed[but_index]:
-            do_debounce = True
-            is_pressed[but_index] = False
-            
-    if do_debounce:
-        time.sleep(0.01)#debounce    
-        
-    #set time buttons
-    #clear     
+asyncio.run(main_loop())

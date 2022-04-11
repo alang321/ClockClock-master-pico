@@ -31,7 +31,7 @@ class ClockModule: # module for 1 of the 6 pcbs in the clock
         """
         buffer = pack("<BB", self.cmd_id["enable_driver"], int(enable_disable)) #cmd_id uint8, enable uint8         
         
-        self.i2c_write(buffer):
+        self.i2c_write(buffer)
             
         self.is_driver_enabled = enable_disable
         
@@ -48,7 +48,7 @@ class ClockModule: # module for 1 of the 6 pcbs in the clock
     def move_to_module(self, position: int, direction: int):
         buffer = pack("<BHbb", self.cmd_id["moveTo"], position, direction, self.sub_stepper_id) #cmd_id uint8, position uint16, dir int8, stepper_id int8             
         
-        self.i2c_write(buffer):
+        self.i2c_write(buffer)
             
         for stepper in self.steppers:
             stepper.current_target_pos = position
@@ -56,7 +56,7 @@ class ClockModule: # module for 1 of the 6 pcbs in the clock
     def move_to_extra_revs_module(self, position: int, direction: int, extra_revs: int):
         buffer = pack("<BHbBb", self.cmd_id["moveTo_extra_revs"], position, direction, extra_revs, self.sub_stepper_id) #cmd_id uint8, position uint16, dir int8, extra_revs uint8, stepper_id int8           
 
-        self.i2c_write(buffer):
+        self.i2c_write(buffer)
             
         for stepper in self.steppers:
             stepper.current_target_pos = position
@@ -64,7 +64,7 @@ class ClockModule: # module for 1 of the 6 pcbs in the clock
     def move_module(self, distance: int, direction: int):
         buffer = pack("<BHbb", self.cmd_id["move"], distance, direction, self.sub_stepper_id) #cmd_id uint8, distance uint16, dir int8, stepper_id int8
 
-        self.i2c_write(buffer):
+        self.i2c_write(buffer)
             
         for stepper in self.steppers:
             relative = (distance * direction) % self.steps_full_rev
@@ -74,7 +74,7 @@ class ClockModule: # module for 1 of the 6 pcbs in the clock
     def stop_module(self):
         buffer = pack("<Bb", self.cmd_id["stop"], self.sub_stepper_id) #cmd_id uint8, stepper_id int8           
         
-        self.i2c_write(buffer):
+        self.i2c_write(buffer)
             
         for stepper in self.steppers:
             stepper.current_target_pos = -1
