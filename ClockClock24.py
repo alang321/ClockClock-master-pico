@@ -248,17 +248,17 @@ class ClockClock24:
 #region  new time handlers
 
     def __stealth_new_time(self, hour: int, minute: int):
-        self.cancel_tasks()
+        self.cancel_display_tasks()
         digits = [hour//10, hour%10, minute//10, minute%10]
         self.digit_display.display_digits(digits, DigitDisplay.animations["stealth"])
         
     def __shortest_path_new_time(self, hour: int, minute: int):
-        self.cancel_tasks()
+        self.cancel_display_tasks()
         digits = [hour//10, hour%10, minute//10, minute%10]
         self.digit_display.display_digits(digits, DigitDisplay.animations["shortest path"])
         
     def __visual_new_time(self, hour: int, minute: int):
-        self.cancel_tasks()
+        self.cancel_display_tasks()
         digits = [hour//10, hour%10, minute//10, minute%10]
         
         if __debug__:
@@ -273,7 +273,7 @@ class ClockClock24:
             self.random_shuffle(self.visual_animation_ids)     
     
     def __analog_new_time(self, hour: int, minute: int):
-        self.cancel_tasks()
+        self.cancel_display_tasks()
         for stepper in self.minute_steppers:
             stepper.move_to(int(self.steps_full_rev/60 * minute), 0)
             
@@ -281,7 +281,7 @@ class ClockClock24:
             stepper.move_to(int(self.steps_full_rev/12 * (hour%12 + minute/60)), 0)
     
     def __change_time_new_time(self, hour: int, minute: int):
-        self.cancel_tasks()
+        self.cancel_display_tasks()
         digits = [hour//10, hour%10, minute//10, minute%10]
         self.digit_display.display_digits(digits, DigitDisplay.animations["stealth"])
         
@@ -295,12 +295,16 @@ class ClockClock24:
 #region nightconf
 
     def nightconf_next_page(self):
+        if __debug__:
+            print("nightconf next page")
         self.__nightconf_current_page = (self.__nightconf_current_page + 1) % self.__nightconf_pagecount
         self.__nightconf_current_digit = 3
         self.__nightconf_display_funcs[self.__nightconf_current_page]()
         self.__nightconf_update_display()
 
     def nightconf_next_digit(self):
+        if __debug__:
+            print("nightconf next digit")
         self.__nightconf_current_digit -= 1
         self.__nightconf_current_digit = self.__nightconf_current_digit % 4
 
@@ -309,6 +313,8 @@ class ClockClock24:
             self.minute_steppers[clk_index].move(self.steps_full_rev, -1)
 
     def nightconf_incr_decr(self, direction):
+        if __debug__:
+            print("nightconf incr", direction)
         self.__nightconf_data_changed = True
         if self.__nightconf_current_page == 0:
             time_change_val = [[-10, 0], [-1, 0], [0, -10], [0, -1]]

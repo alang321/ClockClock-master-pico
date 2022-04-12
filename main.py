@@ -30,6 +30,8 @@ def increment_digit(pin):
         
         if __debug__:
             print("New time:", hour, minute)
+    elif clockclock.get_mode() == ClockClock24.modes["night mode config"]:
+         clockclock.nightconf_incr_decr(1)   
         
 def decrement_digit(pin):
     if clockclock.get_mode() == ClockClock24.modes["change time"]:
@@ -40,6 +42,8 @@ def decrement_digit(pin):
         
         if __debug__:
             print("New time:", hour, minute)
+    elif clockclock.get_mode() == ClockClock24.modes["night mode config"]:
+         clockclock.nightconf_incr_decr(-1)   
     
 def cycle_field(pin):
     global current_field
@@ -53,19 +57,12 @@ def cycle_field(pin):
         for clk_index in clockclock.digit_display.digit_display_indices[current_field]:
             clockclock.hour_steppers[clk_index].move(clockclock.steps_full_rev, 1)
             clockclock.minute_steppers[clk_index].move(clockclock.steps_full_rev, -1)
+    elif clockclock.get_mode() == ClockClock24.modes["night mode config"]:
+        clockclock.nightconf_next_digit()
             
 def cycle_page(pin):
-    global current_field
-    if clockclock.get_mode() == ClockClock24.modes["change time"]:
-        current_field -= 1
-        current_field = current_field % 4
-        
-        if __debug__:
-            print("Changed Field:", current_field)
-        
-        for clk_index in clockclock.digit_display.digit_display_indices[current_field]:
-            clockclock.hour_steppers[clk_index].move(clockclock.steps_full_rev, 1)
-            clockclock.minute_steppers[clk_index].move(clockclock.steps_full_rev, -1)
+    if clockclock.get_mode() == ClockClock24.modes["night mode config"]:   
+        clockclock.nightconf_next_page()
 
 #main loop
 async def main_loop():
