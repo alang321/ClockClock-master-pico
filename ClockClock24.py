@@ -50,7 +50,6 @@ class ClockClock24:
         #asyncio
         self.async_display_task = None  # currently running asynchronous task that has to be cancelled
         self.async_mode_change_task = None  # currently running asynchronous task that has to be cancelled
-
         self.movement_done_event = asyncio.Event()
         
         self.clock_modules = [ClockModule(i2c_bus_list[module_index], slave_adr_list[module_index], steps_full_rev) for module_index in range(len(slave_adr_list))]
@@ -68,18 +67,30 @@ class ClockClock24:
                                      self.__change_time_new_time,
                                      self.__no_new_time]
         self.time_handler = None
-        self.__current_mode = -1
         self.current_speed = -1
         self.current_accel = -1
-        self.set_mode(mode)
+        
+        self.__current_mode = mode
+        self.mode_change_handlers[mode]()  #start with mode
 
     def cancel_tasks(self):
-        self.async_display_task.cancel()
-        self.async_mode_change_task.cancel()
+        if self.async_display_task != None:
+            self.async_display_task.cancel()
+        if self.async_mode_change_task != None:
+            self.async_mode_change_task.cancel()
+            
+    def cancel_display_tasks(self):
+        if self.async_display_task != None:
+            self.async_display_task.cancel()
+            
+    def cancel_mode_tasks(self):
+        if self.async_mode_change_task != None:
+            self.async_mode_change_task.cancel()
 
     async def run(self):
-        if not self.is_running():
-            self.movement_done_event.set()
+        if not self.movement_done_event.is_set():
+            if not self.is_running():
+                self.movement_done_event.set()
         await asyncio.sleep(0)
         
     def display_digit(self, field: int, number: int, direction=0, extra_revs=0):
@@ -87,6 +98,8 @@ class ClockClock24:
         self.digit_display.display_digit(field, number, direction, extra_revs)
     
     def display_time(self, hour: int, minute: int):
+        if __debug__:
+            print("New time displayed:", hour, minute)
         self.time_handler(hour, minute)
         
     def swap(self, index: int):
@@ -99,24 +112,23 @@ class ClockClock24:
         self.minute_steppers[index].move_to(hour_pos, 0)
         self.hour_steppers[index].move_to(minute_pos, 0)
 
-    def set_mode(self, mode: int):
-        self.async_mode_change_task = asyncio.create_task(self.__set_mode(mode))
-        
-    async def __set_mode(self, mode: int):
+    async def set_mode(self, mode: int):
         if __debug__:
             print("New mode:", mode)
         
-        self.cancel_tasks()
+        self.cancel_display_tasks()
         self.__current_mode = mode
         self.time_handler = self.__no_new_time # an empty time handler so a new time doesnt interrupt the displaying of the current mode
         
         self.enable_disable_driver(True)
         self.set_speed_all(ClockClock24.stepper_speed_fast)
         self.set_accel_all(ClockClock24.stepper_accel_fast)
-        self.digit_display.display_digits([0, 0, 0, self.__current_mode], DigitDisplay.animations["stealth"])
-
-        await self.movement_done_event.wait()
+        self.digit_display.display_mode(mode)
+        
         self.movement_done_event.clear()
+        await self.movement_done_event.wait()
+        
+        await asyncio.sleep(2) #so digit is displayed for atleast 2 seconds
 
         self.mode_change_handlers[self.__current_mode]() # specific initialisation of new mode after display of mode digit is done
         
@@ -194,6 +206,8 @@ class ClockClock24:
         self.digit_display.display_digits(digits, DigitDisplay.animations["stealth"])
         
     def __no_new_time(self, hour: int, minute: int):
+        if __debug__:
+            print("New time not displayed")
         return
         
     #commands

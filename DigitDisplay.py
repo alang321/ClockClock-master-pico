@@ -119,7 +119,23 @@ class DigitDisplay:
                 self.hour_steppers[clk_index].move_to_extra_revs(self.digits_pointer_pos_abs[digit][0][sub_index], direction, extra_revs)
                 self.minute_steppers[clk_index].move_to_extra_revs(self.digits_pointer_pos_abs[digit][1][sub_index], direction, extra_revs)
                 
-    async def display_digits(self, digits, animation_id = 0):
+    def display_mode(self, mode_id):
+        digit_count = mode_id // 10
+        
+        default_pos = int(self.steps_full_rev * 0.625)
+        
+        new_positions_0 = [default_pos] * 24
+        new_positions_1 = [default_pos] * 24
+        
+        
+        for field in range(4 - digit_count, 4):
+            for sub_index, clk_index in enumerate(self.digit_display_indices[field]):
+                new_positions_0[clk_index] = self.digits_pointer_pos_abs[digit][0][sub_index]
+                new_positions_1[clk_index] = self.digits_pointer_pos_abs[digit][1][sub_index]
+                
+        self.__new_pose_stealth(new_positions_0, new_positions_1)
+                
+    def display_digits(self, digits, animation_id = 0):
         """Display all 4 digits simultaneously on the clock
         
         Parameters
@@ -136,13 +152,9 @@ class DigitDisplay:
             for sub_index, clk_index in enumerate(DigitDisplay.digit_display_indices[field]):
                 new_positions_h[clk_index] = self.digits_pointer_pos_abs[digit][0][sub_index]
                 new_positions_m[clk_index] = self.digits_pointer_pos_abs[digit][1][sub_index]
-
-        asyncio.run(self.__run_animation(animation_id, new_positions_h, new_positions_m))
-
-    async def __run_animation(self, animation_id, new_pos_h, new_pos_m):
+        
         self.clockclock.async_display_task = asyncio.create_task(
-            self.animation_handlers[animation_id](new_pos_h, new_pos_m))
-        await asyncio.sleep(0)
+            self.animation_handlers[animation_id](new_positions_h, new_positions_m))
 
     async def new_pose_shortest_path(self, new_positions_h, new_positions_m):
         """Display a series of new positions on the clock, move stepper the shortest path to its destianation
@@ -170,6 +182,9 @@ class DigitDisplay:
         new_positions_1 : List[int]
             the positions to display, should int arrays of length 24
         """
+        self.__new_pose_stealth(new_positions_0, new_positions_1)
+                
+    def __new_pose_stealth(self, new_positions_0, new_positions_1):
         for clk_index in range(24):
             a_pos = new_positions_0[clk_index]
             b_pos = new_positions_1[clk_index]
@@ -239,8 +254,8 @@ class DigitDisplay:
             self.hour_steppers[clk_index].move_to(start_pos_h, 0)
             self.minute_steppers[clk_index].move_to(start_pos_m, 0)
 
-        await self.clockclock.movement_done_event.wait()
         self.clockclock.movement_done_event.clear()
+        await self.clockclock.movement_done_event.wait()
 
         for col_index, col in enumerate(DigitDisplay.column_indices):
             if col_index != 0:
@@ -265,9 +280,9 @@ class DigitDisplay:
         start_pos = int(self.steps_full_rev * start_ang)
         
         self.clockclock.move_to_all(start_pos, 0)
-
-        await self.clockclock.movement_done_event.wait()
+        
         self.clockclock.movement_done_event.clear()
+        await self.clockclock.movement_done_event.wait()
 
         for clk_index in range(24):
             self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], 1, extra_revs)
@@ -317,9 +332,9 @@ class DigitDisplay:
             
             self.hour_steppers[clk_index].move_to(start_pos, 0)
             self.minute_steppers[clk_index].move_to(start_pos, 0)
-
-        await self.clockclock.movement_done_event.wait()
+        
         self.clockclock.movement_done_event.clear()
+        await self.clockclock.movement_done_event.wait()
 
         delay_per_distance = 400 # ms
         start_delays = [0] * len(DigitDisplay.column_indices)
@@ -419,8 +434,8 @@ class DigitDisplay:
             self.minute_steppers[clk_index].move_to(int(start_pos_m), 0)
             
         #wait for move to be done
-        await self.clockclock.movement_done_event.wait()
         self.clockclock.movement_done_event.clear()
+        await self.clockclock.movement_done_event.wait()
 
         for clk_index in range(24):
             self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], direction, extra_revs)
@@ -485,8 +500,8 @@ class DigitDisplay:
             self.minute_steppers[clk_index].move_to(int(start_pos_m), 0)
 
         #wait for move to be done
-        await self.clockclock.movement_done_event.wait()
         self.clockclock.movement_done_event.clear()
+        await self.clockclock.movement_done_event.wait()
 
         for clk_index in range(24):
             self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], direction, extra_revs)
@@ -512,10 +527,10 @@ class DigitDisplay:
         for clk_index in range(24):
             self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], 1, 1)
             self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], 1, 3)
-
+        
+        self.clockclock.movement_done_event.clear()
         try:
             await self.clockclock.movement_done_event.wait()
-            self.clockclock.movement_done_event.clear()
         finally:
             self.clockclock.set_speed_all(self.clockclock.current_speed)
             

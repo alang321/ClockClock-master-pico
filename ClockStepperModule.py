@@ -94,7 +94,7 @@ class ClockModule: # module for 1 of the 6 pcbs in the clock
             try:
                 self.i2c_bus.writeto(self.i2c_address, buffer)
             except:
-                print("Slave not found:", self.i2c_address)
+                print("Slave not found:", self.i2c_address, " Data:", buffer)
         else:
             self.i2c_bus.writeto(self.i2c_address, buffer)
     
@@ -103,8 +103,8 @@ class ClockModule: # module for 1 of the 6 pcbs in the clock
             try:
                 return self.i2c_bus.readfrom(self.i2c_address, byte_count)
             except:
-                print("Slave not found:", self.i2c_address)
-                return 0
+                print("Slave not found:", self.i2c_address, "Tried to read ", byte_count, "byte(s)")
+                return (0,)
         else:
             return self.i2c_bus.readfrom(self.i2c_address, byte_count)
         
@@ -203,21 +203,21 @@ class ClockStepper:
     def i2c_write(self, buffer):
         if __debug__:
             try:
-                self.i2c_bus.writeto(self.i2c_address, buffer)
+                self.module.i2c_bus.writeto(self.module.i2c_address, buffer)
             except:
-                print("Slave not found:", self.i2c_address)
+                print("Slave not found:", self.module.i2c_address, " Data:", buffer)
         else:
-            self.i2c_bus.writeto(self.i2c_address, buffer)
+            self.module.i2c_bus.writeto(self.module.i2c_address, buffer)
     
     def i2c_read(self, byte_count):
         if __debug__:
             try:
-                return self.i2c_bus.readfrom(self.i2c_address, byte_count)
+                return self.module.i2c_bus.readfrom(self.module.i2c_address, byte_count)
             except:
-                print("Slave not found:", self.i2c_address)
-                return 0
+                print("Slave not found:", self.i2c_address, "Tried to read ", byte_count, "byte(s)")
+                return (0,)
         else:
-            return self.i2c_bus.readfrom(self.i2c_address, byte_count)
+            return self.module.i2c_bus.readfrom(self.module.i2c_address, byte_count)
     
 
 

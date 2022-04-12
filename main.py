@@ -13,10 +13,10 @@ def new_minute_handler():
 
 #button handlers
 def cycle_mode():
-    curr_mode = clockclock.get_mode()
-    clockclock.set_mode((curr_mode + 1) % len(ClockClock24.modes))
-    
     global current_field
+    curr_mode = clockclock.get_mode()
+    clockclock.async_mode_change_task = asyncio.create_task(clockclock.set_mode((curr_mode + 1) % len(ClockClock24.modes)))
+    
     current_field = 3
         
 def increment_digit():
@@ -41,8 +41,8 @@ def decrement_digit():
             print("New time:", hour, minute)
     
 def cycle_field():
+    global current_field
     if clockclock.get_mode() == ClockClock24.modes["change time"]:
-        global current_field
         current_field -= 1
         current_field = current_field % 4
         
@@ -55,13 +55,15 @@ def cycle_field():
 
 #main loop
 async def main_loop():
+    global alarm_flag
+
     while True:
         if alarm_flag:
             alarm_flag = False
             hour, minute = rtc.get_hour_minute()
             clockclock.display_time(hour, minute)
-
-        asyncio.run(clockclock.run())
+        
+        await clockclock.run()
 
         do_debounce = False
         for but_index, button in enumerate(buttons):
@@ -73,8 +75,12 @@ async def main_loop():
                 do_debounce = True
                 is_pressed[but_index] = False
 
-        if do_debounce:
-            time.sleep(0.01)  # debounce
+        #if do_debounce:
+            #time.sleep(0.01)  # debounce
+                
+        print("loopy") #todo
+        
+        await asyncio.sleep_ms(200)
 
 i2c1 = machine.I2C(1,sda=machine.Pin(14), scl=machine.Pin(3), freq=100000)
 i2c0 = machine.I2C(0,sda=machine.Pin(16), scl=machine.Pin(17), freq=100000)
