@@ -75,6 +75,14 @@ class ClockClock24:
 
         self.input_lock = False # gets turned on during a mode change being display
         
+        #night mode config
+        self.__nightconf_pagecount = 4
+        self.__nightconf_current_page = 0
+        self.__nightconf_current_digit = 3
+        self.__nightconf_data_changed = False
+        self.__nightconf_display_funcs = [self.__nightconf_start_disp, self.__nightconf_end_disp, self.__nightconf_day_disp, self.__nightconf_night_disp]
+        self.__nightconf_allowed_modes = [0, 1, 2, 3, 4]
+        
         #night mode
         self.default_night_start = [21, 0]
         self.default_night_end = [8, 0]
@@ -89,14 +97,6 @@ class ClockClock24:
 
         self.__current_mode_night = -1
         self.night_on = False
-        
-        #night mode config
-        self.__nightconf_pagecount = 4
-        self.__nightconf_current_page = 0
-        self.__nightconf_current_digit = 3
-        self.__nightconf_data_changed = False
-        self.__nightconf_display_funcs = [self.__nightconf_start_disp, self.__nightconf_end_disp, self.__nightconf_day_disp, self.__nightconf_night_disp]
-        self.__nightconf_allowed_modes = [0, 1, 2, 3, 4]
         
         self.__current_mode = mode
         self.mode_change_handlers[mode](True)  #start with mode
@@ -334,19 +334,33 @@ class ClockClock24:
         if not self.input_lock:
             if __debug__:
                 print("nightconf incr", direction)
+                
             self.__nightconf_data_changed = True
+            
             if self.__nightconf_current_page == 0:
-                time_change_val = [[-10, 0], [-1, 0], [0, -10], [0, -1]]
+                time_change_val = [[10, 0], [1, 0], [0, 10], [0, 1]]
                 self.night_start = self.__nightconf_incr_decr_time(self.night_start[0], self.night_start[1], time_change_val[self.__nightconf_current_digit][0] * direction, time_change_val[self.__nightconf_current_digit][1] * direction)
+                
+                if __debug__:
+                    print("new start time:", self.night_start)
             elif self.__nightconf_current_page == 1:
-                time_change_val = [[-10, 0], [-1, 0], [0, -10], [0, -1]]
-                self.night_start = self.__nightconf_incr_decr_time(self.night_end[0], self.night_end[1], time_change_val[self.__nightconf_current_digit][0] * direction, time_change_val[self.__nightconf_current_digit][1] * direction)
+                time_change_val = [[10, 0], [1, 0], [0, 10], [0, 1]]
+                self.night_end = self.__nightconf_incr_decr_time(self.night_end[0], self.night_end[1], time_change_val[self.__nightconf_current_digit][0] * direction, time_change_val[self.__nightconf_current_digit][1] * direction)
+                
+                if __debug__:
+                    print("new end time:", self.night_end)
             elif self.__nightconf_current_page == 2:
                 index = self.__nightconf_allowed_modes.index(self.day_mode)
                 self.day_mode = self.__nightconf_allowed_modes[(index + direction) % len(self.__nightconf_allowed_modes)]
+                
+                if __debug__:
+                    print("new day mode:", self.day_mode)
             else:
                 index = self.__nightconf_allowed_modes.index(self.night_mode)
                 self.night_mode = self.__nightconf_allowed_modes[(index + direction) % len(self.__nightconf_allowed_modes)]
+                
+                if __debug__:
+                    print("new night mode:", self.night_mode)
 
             self.__nightconf_update_display()
 
