@@ -1,11 +1,10 @@
-import machine
-import time
 import random
-import ucollections
 from ClockStepperModule import ClockStepper
 from ClockStepperModule import ClockModule
 from DigitDisplay import DigitDisplay
 import uasyncio as asyncio
+import os
+import json
 
 class ClockClock24:
     #fast speed used when showing mode numbers and similar
@@ -77,21 +76,27 @@ class ClockClock24:
         self.input_lock = False # gets turned on during a mode change being display
         
         #night mode
-        self.night_on = False
-        self.night_start = [21, 0]
-        self.night_end= [8, 0]
-        self.night_mode = 0
-        self.day_mode = 1
+        self.default_night_start = [21, 0]
+        self.default_night_end = [8, 0]
+        self.default_night_mode = 0
+        self.default_day_mode = 1
+        self.night_config_file = "night_config.txt"
+        self.night_start = self.default_night_start
+        self.night_end = self.default_night_end
+        self.night_mode = self.default_night_mode
+        self.day_mode = self.default_day_mode
+        self.__nightconf_read_storage()
+
         self.__current_mode_night = -1
+        self.night_on = False
         
         #night mode config
         self.__nightconf_pagecount = 4
         self.__nightconf_current_page = 0
         self.__nightconf_current_digit = 3
         self.__nightconf_data_changed = False
-        self.__nightconf_display_funcs = [self.__modeconf_start_disp, self.__modeconf_end_disp, self.__modeconf_day_disp, self.__modeconf_night_disp]
+        self.__nightconf_display_funcs = [self.__nightconf_start_disp, self.__nightconf_end_disp, self.__nightconf_day_disp, self.__nightconf_night_disp]
         self.__nightconf_allowed_modes = [0, 1, 2, 3, 4]
-        #todo: read the config from flash storage
         
         self.__current_mode = mode
         self.mode_change_handlers[mode](True)  #start with mode
@@ -243,7 +248,7 @@ class ClockClock24:
             if self.__nightconf_data_changed:
                 self.__nightconf_data_changed = False
 
-                # todo : write the config to the flash storage
+                self.__nightconf_write_storage()
 
     def __sleep(self, start):
         if start:
@@ -368,17 +373,53 @@ class ClockClock24:
     def __nightconf_update_display(self):
         self.__nightconf_display_funcs[self.__nightconf_current_page]()
 
-    def __modeconf_start_disp(self):
+    def __nightconf_start_disp(self):
         self.__change_time_new_time(self.night_start[0], self.night_start[1])
 
-    def __modeconf_end_disp(self):
+    def __nightconf_end_disp(self):
         self.__change_time_new_time(self.night_end[0], self.night_end[1])
 
-    def __modeconf_day_disp(self):
+    def __nightconf_day_disp(self):
         self.digit_display.display_mode(self.day_mode)
 
-    def __modeconf_night_disp(self):
+    def __nightconf_night_disp(self):
         self.digit_display.display_mode(self.night_mode)
+
+    def __nightconf_read_storage(self):
+        try:
+            f = open(self.night_config_file, "r")
+            string = f.readline()
+            self.night_start, self.night_end, self.night_mode, self.day_mode = json.loads(string)
+            f.close()
+
+            if not 0 <= self.night_start[0] <= 23:
+                raise ValueError("Bad stored data")
+            if not 0 <= self.night_start[1] <= 59:
+                raise ValueError("Bad stored data")
+            if not 0 <= self.night_end[0] <= 23:
+                raise ValueError("Bad stored data")
+            if not 0 <= self.night_end[1] <= 59:
+                raise ValueError("Bad stored data")
+            if self.night_mode not in self.__nightconf_allowed_modes:
+                raise ValueError("Bad stored data")
+            if self.day_mode not in self.__nightconf_allowed_modes:
+                raise ValueError("Bad stored data")
+        except Exception as e:
+            if __debug__:
+                print(str(e))
+            self.night_start = self.default_night_start
+            self.night_end = self.default_night_end
+            self.night_mode = self.default_night_mode
+            self.day_mode = self.default_day_mode
+
+            self.__nightconf_write_storage()
+
+    def __nightconf_write_storage(self):
+        data_str = json.dumps((self.night_start, self.night_end, self.night_mode, self.day_mode), separators=None)
+        f = open(self.night_config_file, "w")
+        f.write(data_str)
+        f.close()
+        return
 
 #endregion
 
