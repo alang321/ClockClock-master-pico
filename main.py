@@ -22,47 +22,51 @@ def cycle_mode(pin):
         
 def increment_digit(pin):
     # check if mode is time change
-    if clockclock.get_mode() == ClockClock24.modes["change time"]:
-        time_change_val = [[10, 0], [1, 0], [0, 10], [0, 1]]
-        rtc.add_to_hour_minute(time_change_val[current_field][0], time_change_val[current_field][1])
-        hour, minute = rtc.get_hour_minute()
-        clockclock.display_time(hour, minute)
-        
-        if __debug__:
-            print("New time:", hour, minute)
-    elif clockclock.get_mode() == ClockClock24.modes["night mode config"]:
-         clockclock.nightconf_incr_decr(1)   
+    if not clockclock.input_lock:
+        if clockclock.get_mode() == ClockClock24.modes["change time"]:
+            time_change_val = [[10, 0], [1, 0], [0, 10], [0, 1]]
+            rtc.add_to_hour_minute(time_change_val[current_field][0], time_change_val[current_field][1])
+            hour, minute = rtc.get_hour_minute()
+            clockclock.display_time(hour, minute)
+
+            if __debug__:
+                print("New time:", hour, minute)
+        elif clockclock.get_mode() == ClockClock24.modes["night mode config"]:
+             clockclock.nightconf_incr_decr(1)
         
 def decrement_digit(pin):
-    if clockclock.get_mode() == ClockClock24.modes["change time"]:
-        time_change_val = [[-10, 0], [-1, 0], [0, -10], [0, -1]]
-        rtc.add_to_hour_minute(time_change_val[current_field][0], time_change_val[current_field][1])
-        hour, minute = rtc.get_hour_minute()
-        clockclock.display_time(hour, minute)
-        
-        if __debug__:
-            print("New time:", hour, minute)
-    elif clockclock.get_mode() == ClockClock24.modes["night mode config"]:
-         clockclock.nightconf_incr_decr(-1)   
+    if not clockclock.input_lock:
+        if clockclock.get_mode() == ClockClock24.modes["change time"]:
+            time_change_val = [[-10, 0], [-1, 0], [0, -10], [0, -1]]
+            rtc.add_to_hour_minute(time_change_val[current_field][0], time_change_val[current_field][1])
+            hour, minute = rtc.get_hour_minute()
+            clockclock.display_time(hour, minute)
+
+            if __debug__:
+                print("New time:", hour, minute)
+        elif clockclock.get_mode() == ClockClock24.modes["night mode config"]:
+             clockclock.nightconf_incr_decr(-1)
     
 def cycle_field(pin):
     global current_field
-    if clockclock.get_mode() == ClockClock24.modes["change time"]:
-        current_field -= 1
-        current_field = current_field % 4
-        
-        if __debug__:
-            print("Changed Field:", current_field)
-        
-        for clk_index in clockclock.digit_display.digit_display_indices[current_field]:
-            clockclock.hour_steppers[clk_index].move(clockclock.steps_full_rev, 1)
-            clockclock.minute_steppers[clk_index].move(clockclock.steps_full_rev, -1)
-    elif clockclock.get_mode() == ClockClock24.modes["night mode config"]:
-        clockclock.nightconf_next_digit()
+    if not clockclock.input_lock:
+        if clockclock.get_mode() == ClockClock24.modes["change time"]:
+            current_field -= 1
+            current_field = current_field % 4
+
+            if __debug__:
+                print("Changed Field:", current_field)
+
+            for clk_index in clockclock.digit_display.digit_display_indices[current_field]:
+                clockclock.hour_steppers[clk_index].move(clockclock.steps_full_rev, 1)
+                clockclock.minute_steppers[clk_index].move(clockclock.steps_full_rev, -1)
+        elif clockclock.get_mode() == ClockClock24.modes["night mode config"]:
+            clockclock.nightconf_next_digit()
             
 def cycle_page(pin):
-    if clockclock.get_mode() == ClockClock24.modes["night mode config"]:   
-        clockclock.nightconf_next_page()
+    if not clockclock.input_lock:
+        if clockclock.get_mode() == ClockClock24.modes["night mode config"]:
+            clockclock.nightconf_next_page()
 
 #main loop
 async def main_loop():
@@ -78,7 +82,7 @@ async def main_loop():
     button_plus.attachClick(increment_digit)
     button_minus.attachClick(decrement_digit)
     button_next_digit.attachClick(cycle_field)
-    button_next_digit.attachLongPressStop(cycle_field)
+    button_next_digit.attachLongPressStop(cycle_page)
 
     while True:
         if alarm_flag:
