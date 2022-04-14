@@ -101,9 +101,9 @@ i2c1 = machine.I2C(1,sda=machine.Pin(14), scl=machine.Pin(3), freq=100000)
 i2c0 = machine.I2C(0,sda=machine.Pin(16), scl=machine.Pin(17), freq=100000)
 
 # module addresses  (pcb containing 4 steppers and a mcu, stm32f103 in this case)
-module_i2c_adr = [13, 12, # the adress of the module starting top left row first
-                  15, 14, 
-                  17, 16]
+module_i2c_adr = [12, 13, # the adress of the module starting top left row first
+                  14, 15, 
+                  16, 17]
 
 module_i2c_bus = [i2c1, i2c0, # the bus on which the module is
                   i2c1, i2c0, 
@@ -116,6 +116,8 @@ current_field = 3 # right most digit
 
 rtc = DS3231_timekeeper(new_minute_handler, 13, i2c1)
 
-clockclock = ClockClock24(module_i2c_adr, module_i2c_bus, ClockClock24.modes["stealth"], *rtc.get_hour_minute(), 4320)
+hour, minute = rtc.get_hour_minute()
+
+clockclock = ClockClock24(module_i2c_adr, module_i2c_bus, ClockClock24.modes["stealth"], hour, minute, 4320)
 
 asyncio.run(main_loop())
