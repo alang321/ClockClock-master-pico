@@ -333,8 +333,8 @@ class ClockClock24:
                     print("nightconf next digit:", self.__nightconf_current_digit)
 
                 for clk_index in self.digit_display.digit_display_indices[self.__nightconf_current_digit]:
-                    self.hour_steppers[clk_index].move(self.steps_full_rev, 1)
-                    self.minute_steppers[clk_index].move(self.steps_full_rev, -1)
+                    self.hour_steppers[clk_index].move_to_extra_revs(self.hour_steppers[clk_index].current_target_pos, 1, 1)
+                    self.minute_steppers[clk_index].move_to_extra_revs(self.hour_steppers[clk_index].current_target_pos, -1, 1)
 
     def nightconf_incr_decr(self, direction):
         if not self.input_lock:
