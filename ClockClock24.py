@@ -34,8 +34,9 @@ class ClockClock24:
       "night mode config": 7,
       }
     
-    def __init__(self, slave_adr_list, i2c_bus_list, mode, steps_full_rev = 4320):
+    def __init__(self, slave_adr_list, i2c_bus_list, mode, hour=10, minute=10, steps_full_rev=4320):
         self.steps_full_rev = steps_full_rev
+        self.__current_time = [hour, minute]
         
         self.visual_animation_ids = [DigitDisplay.animations["extra revs"], #these get shuffled randomly when ever at end of list
                                      DigitDisplay.animations["straight wave"],
@@ -97,9 +98,10 @@ class ClockClock24:
 
         self.__current_mode_night = -1
         self.night_on = False
-        
+
         self.__current_mode = mode
         self.mode_change_handlers[mode](True)  #start with mode
+        self.display_time(hour, minute)
 
     def cancel_tasks(self):
         if self.async_display_task != None:
@@ -128,6 +130,8 @@ class ClockClock24:
     def display_time(self, hour: int, minute: int):
         if __debug__:
             print("New time displayed:", hour, minute)
+
+        self.__current_time = [hour, minute]
         
         if self.night_on:
             start_time_min = self.night_start[0] * 60 + self.night_start[1]
@@ -190,10 +194,12 @@ class ClockClock24:
         self.movement_done_event.clear()
         await self.movement_done_event.wait()
         
-        await asyncio.sleep(3) #so digit is displayed for atleast a few seconds(always displayed until next new minute)
+        await asyncio.sleep(1.5) #so digit is displayed for atleast a few seconds(always displayed until next new minute)
         
         self.mode_change_handlers[self.__current_mode](True) # specific initialisation of new mode after display of mode digit is done
         self.input_lock = False
+
+        self.display_time(self.__current_time[0], self.__current_time[1])
 
     def get_mode(self):
         return self.__current_mode

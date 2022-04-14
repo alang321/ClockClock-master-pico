@@ -102,7 +102,7 @@ class DigitDisplay:
         """Display a single digit on the clock
         
         Parameters
-            the field where the number should be displayed 0-4
+            the field where the number should be displayed 0-3
         digit : int
             the number to display
         direction : int
@@ -120,15 +120,15 @@ class DigitDisplay:
                 self.minute_steppers[clk_index].move_to_extra_revs(self.digits_pointer_pos_abs[digit][1][sub_index], direction, extra_revs)
                 
     def display_mode(self, mode_id):
-        digit_count = mode_id // 10
+        mode_string = str(mode_id)
+        digit_count = len(str(mode_string))
         
         default_pos = int(self.steps_full_rev * 0.625)
         
         new_positions_0 = [default_pos] * 24
         new_positions_1 = [default_pos] * 24
-        
-        
-        for field in range(4 - digit_count, 4):
+        for digit_id, field in enumerate(range(4 - digit_count, 4)):
+            digit = int(mode_string[digit_id])
             for sub_index, clk_index in enumerate(self.digit_display_indices[field]):
                 new_positions_0[clk_index] = self.digits_pointer_pos_abs[digit][0][sub_index]
                 new_positions_1[clk_index] = self.digits_pointer_pos_abs[digit][1][sub_index]

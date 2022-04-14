@@ -1,6 +1,8 @@
 from struct import pack
 import machine
 
+#region clock moudle
+
 class ClockModule: # module for 1 of the 6 pcbs in the clock
     cmd_id = {
       "enable_driver": 0,
@@ -107,8 +109,10 @@ class ClockModule: # module for 1 of the 6 pcbs in the clock
                 return (0,)
         else:
             return self.i2c_bus.readfrom(self.i2c_address, byte_count)
+
+#endregion
         
-        
+#region clock stepper
 
 class ClockStepper:
     """
@@ -219,7 +223,4 @@ class ClockStepper:
         else:
             return self.module.i2c_bus.readfrom(self.module.i2c_address, byte_count)
     
-
-
-    
-
+#endregion

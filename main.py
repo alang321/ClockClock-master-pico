@@ -111,11 +111,11 @@ module_i2c_bus = [i2c1, i2c0, # the bus on which the module is
 
 time.sleep(6) #wait so clock modules have time to setup
 
-clockclock = ClockClock24(module_i2c_adr, module_i2c_bus, ClockClock24.modes["stealth"], 4320)
-
 alarm_flag = False
 current_field = 3 # right most digit
 
 rtc = DS3231_timekeeper(new_minute_handler, 13, i2c1)
+
+clockclock = ClockClock24(module_i2c_adr, module_i2c_bus, ClockClock24.modes["stealth"], *rtc.get_hour_minute(), 4320)
 
 asyncio.run(main_loop())
