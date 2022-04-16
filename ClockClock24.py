@@ -24,17 +24,17 @@ class ClockClock24:
     stepper_accel_analog = 50
     
     modes = {
-      "stealth": 0,
-      "visual": 1, #every timechange has choreographies and stuff
-      "shortest path": 2, #move to new poosition with shortest path
-      "analog": 3, # every clock is a normal clock
-      "sleep": 4, # move all steppers to 6 o clock (default) position and disable stepper drivers
+      "visual": 0,  # every timechange has choreographies and stuff
+      "shortest path": 1,  # move to new position with shortest path
+      "stealth": 2,
+      "analog": 3,  # every clock is a normal clock
+      "sleep": 4,  # move all steppers to 6 o clock (default) position and disable stepper drivers
       "change time": 5,
       "night mode": 6,
       "night mode config": 7,
       }
     
-    def __init__(self, slave_adr_list, i2c_bus_list, mode, hour=10, minute=10, steps_full_rev=4320):
+    def __init__(self, slave_adr_list, i2c_bus_list, hour=10, minute=10, steps_full_rev=4320):
         self.steps_full_rev = steps_full_rev
         self.__current_time = [hour, minute]
         
@@ -63,10 +63,10 @@ class ClockClock24:
         
         self.digit_display = DigitDisplay(self)
 
-        self.mode_change_handlers = [self.__stealth, self.__visual, self.__shortest_path, self.__analog, self.__sleep, self.__change_time, self.__night_mode, self.__night_mode_config]
-        self.time_change_handlers = [self.__stealth_new_time,
-                                     self.__visual_new_time,
+        self.mode_change_handlers = [self.__visual, self.__shortest_path, self.__stealth, self.__analog, self.__sleep, self.__change_time, self.__night_mode, self.__night_mode_config]
+        self.time_change_handlers = [self.__visual_new_time,
                                      self.__shortest_path_new_time,
+                                     self.__stealth_new_time,
                                      self.__analog_new_time,
                                      self.__no_new_time,
                                      self.__change_time_new_time,
@@ -101,8 +101,8 @@ class ClockClock24:
         self.__current_mode_night = -1
         self.night_on = False
 
-        self.__current_mode = mode
-        self.mode_change_handlers[mode](True)  #start with mode
+        self.__current_mode = 0
+        self.mode_change_handlers[self.__current_mode](True)  #start with mode
         self.display_time(hour, minute)
 
     def cancel_tasks(self):
@@ -334,10 +334,10 @@ class ClockClock24:
                 if __debug__:
                     print("nightconf next digit:", self.__nightconf_current_digit)
 
-                distance = int(self.steps_full_rev * 0.1)
+                distance = int(self.steps_full_rev * 0.075)
                 for clk_index in self.digit_display.digit_display_indices[self.__nightconf_current_digit]:
                     self.hour_steppers[clk_index].wiggle(distance, 1)
-                    self.minute_steppers[clk_index].wiggle(distance, -1)
+                    self.minute_steppers[clk_index].wiggle(distance, 1)
 
     def nightconf_incr_decr(self, direction):
         if not self.input_lock:

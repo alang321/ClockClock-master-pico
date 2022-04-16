@@ -126,6 +126,7 @@ class DigitDisplay:
                 self.minute_steppers[clk_index].move_to_extra_revs(self.digits_pointer_pos_abs[digit][1][sub_index], direction, extra_revs)
                 
     def display_mode(self, mode_id):
+        mode_id += 1
         mode_string = str(mode_id)
         digit_count = len(str(mode_string))
         

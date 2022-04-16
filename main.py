@@ -57,10 +57,10 @@ def cycle_field(pin):
             if __debug__:
                 print("Changed Field:", current_field)
 
-            distance = int(clockclock.steps_full_rev * 0.1)
+            distance = int(clockclock.steps_full_rev * 0.075)
             for clk_index in clockclock.digit_display.digit_display_indices[current_field]:
                 clockclock.hour_steppers[clk_index].wiggle(distance, 1)
-                clockclock.minute_steppers[clk_index].wiggle(distance, -1)
+                clockclock.minute_steppers[clk_index].wiggle(distance, 1)
         elif clockclock.get_mode() == ClockClock24.modes["night mode config"]:
             clockclock.nightconf_next_digit()
             
@@ -119,6 +119,6 @@ rtc = DS3231_timekeeper(new_minute_handler, 13, i2c1)
 
 hour, minute = rtc.get_hour_minute()
 
-clockclock = ClockClock24(module_i2c_adr, module_i2c_bus, ClockClock24.modes["stealth"], hour, minute, 4320)
+clockclock = ClockClock24(module_i2c_adr, module_i2c_bus, hour, minute, 4320)
 
 asyncio.run(main_loop())
