@@ -57,9 +57,10 @@ def cycle_field(pin):
             if __debug__:
                 print("Changed Field:", current_field)
 
+            distance = int(clockclock.steps_full_rev * 0.2)
             for clk_index in clockclock.digit_display.digit_display_indices[current_field]:
-                clockclock.hour_steppers[clk_index].move_to_extra_revs(clockclock.hour_steppers[clk_index].current_target_pos, 1, 1)
-                clockclock.minute_steppers[clk_index].move_to_extra_revs(clockclock.hour_steppers[clk_index].current_target_pos, -1, 1)
+                clockclock.hour_steppers[clk_index].wiggle(distance, 1)
+                clockclock.minute_steppers[clk_index].wiggle(distance, -1)
         elif clockclock.get_mode() == ClockClock24.modes["night mode config"]:
             clockclock.nightconf_next_digit()
             

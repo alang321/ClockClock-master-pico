@@ -12,7 +12,8 @@ class ClockModule: # module for 1 of the 6 pcbs in the clock
       "moveTo_extra_revs": 4,
       "move": 5,
       "stop": 6,
-      "falling_pointer": 7
+      "wiggle": 7,
+      "falling_pointer": 8
     }
     
     def __init__(self, i2c_bus: machine.I2C, i2c_address: int, steps_full_rev: int):
@@ -80,6 +81,11 @@ class ClockModule: # module for 1 of the 6 pcbs in the clock
             
         for stepper in self.steppers:
             stepper.current_target_pos = -1
+
+    def wiggle_module(self, distance: int, direction: int):
+        buffer = pack("<BHbb", self.cmd_id["wiggle"], distance, direction, self.sub_stepper_id) #cmd_id uint8, distance uint16, dir int8, stepper_id int8
+
+        self.i2c_write(buffer)
     
     def falling_pointer_module(self):
         buffer = pack("<Bb", self.cmd_id["falling_pointer"], self.sub_stepper_id) #cmd_id uint8, stepper_id int8           
@@ -144,7 +150,8 @@ class ClockStepper:
       "moveTo_extra_revs": 4,
       "move": 5,
       "stop": 6,
-      "falling_pointer": 7
+      "wiggle": 7,
+      "falling_pointer": 8
     }
     
     def __init__(self, sub_stepper_id: int, module: ClockModule, steps_per_rev: int, current_target_pos = 0):
@@ -191,6 +198,11 @@ class ClockStepper:
         self.i2c_write(buffer)
         
         self.current_target_pos = -1
+
+    def wiggle(self, distance: int, direction: int):
+        buffer = pack("<BHbb", self.cmd_id["wiggle"], distance, direction, self.sub_stepper_id) #cmd_id uint8, distance uint16, dir int8, stepper_id int8
+
+        self.i2c_write(buffer)
     
     def falling_pointer(self):
         buffer = pack("<Bb", self.cmd_id["falling_pointer"], self.sub_stepper_id) #cmd_id uint8, stepper_id int8   

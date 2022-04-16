@@ -194,7 +194,7 @@ class ClockClock24:
         self.movement_done_event.clear()
         await self.movement_done_event.wait()
         
-        await asyncio.sleep(1.5) #so digit is displayed for atleast a few seconds(always displayed until next new minute)
+        await asyncio.sleep(2) #so digit is displayed for atleast a few seconds
         
         self.mode_change_handlers[self.__current_mode](True) # specific initialisation of new mode after display of mode digit is done
         self.input_lock = False
@@ -332,9 +332,10 @@ class ClockClock24:
                 if __debug__:
                     print("nightconf next digit:", self.__nightconf_current_digit)
 
+                distance = int(self.steps_full_rev * 0.2)
                 for clk_index in self.digit_display.digit_display_indices[self.__nightconf_current_digit]:
-                    self.hour_steppers[clk_index].move_to_extra_revs(self.hour_steppers[clk_index].current_target_pos, 1, 1)
-                    self.minute_steppers[clk_index].move_to_extra_revs(self.hour_steppers[clk_index].current_target_pos, -1, 1)
+                    self.hour_steppers[clk_index].wiggle(distance, 1)
+                    self.minute_steppers[clk_index].wiggle(distance, -1)
 
     def nightconf_incr_decr(self, direction):
         if not self.input_lock:
