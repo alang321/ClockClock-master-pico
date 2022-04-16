@@ -2,6 +2,7 @@ import random
 from ClockStepperModule import ClockStepper
 from ClockStepperModule import ClockModule
 from DigitDisplay import DigitDisplay
+from DS3231_timekeeper import DS3231_timekeeper
 import uasyncio as asyncio
 import os
 import json
@@ -29,14 +30,15 @@ class ClockClock24:
       "stealth": 2,
       "analog": 3,  # every clock is a normal clock
       "sleep": 4,  # move all steppers to 6 o clock (default) position and disable stepper drivers
-      "change time": 5,
-      "night mode": 6,
-      "night mode config": 7,
+      "night mode": 5,
+      "settings": 6,
       }
     
-    def __init__(self, slave_adr_list, i2c_bus_list, hour=10, minute=10, steps_full_rev=4320):
+    def __init__(self, slave_adr_list, i2c_bus_list, clk_i2c_bus, clk_interrupt_pin, steps_full_rev=4320):
+        self.alarm_flag = False
+        self.rtc = DS3231_timekeeper(self.new_minute_handler, clk_interrupt_pin, clk_i2c_bus)
+
         self.steps_full_rev = steps_full_rev
-        self.__current_time = [hour, minute]
         
         self.visual_animation_ids = [DigitDisplay.animations["extra revs"], #these get shuffled randomly when ever at end of list
                                      DigitDisplay.animations["straight wave"],
@@ -63,15 +65,14 @@ class ClockClock24:
         
         self.digit_display = DigitDisplay(self)
 
-        self.mode_change_handlers = [self.__visual, self.__shortest_path, self.__stealth, self.__analog, self.__sleep, self.__change_time, self.__night_mode, self.__night_mode_config]
+        self.mode_change_handlers = [self.__visual, self.__shortest_path, self.__stealth, self.__analog, self.__sleep, self.__night_mode, self.__settings]
         self.time_change_handlers = [self.__visual_new_time,
                                      self.__shortest_path_new_time,
                                      self.__stealth_new_time,
                                      self.__analog_new_time,
                                      self.__no_new_time,
-                                     self.__change_time_new_time,
                                      self.__no_new_time,
-                                     self.__no_new_time]
+                                     self.__settings_new_time]
         self.time_handler = None
         self.current_speed = -1
         self.current_accel = -1
@@ -79,13 +80,21 @@ class ClockClock24:
         self.input_lock = False # gets turned on during a mode change being display
         
         #night mode config
-        self.__nightconf_pagecount = 4
-        self.__nightconf_current_page = 0
-        self.__nightconf_current_digit = 3
-        self.__nightconf_data_changed = False
-        self.__nightconf_display_funcs = [self.__nightconf_start_disp, self.__nightconf_end_disp, self.__nightconf_day_disp, self.__nightconf_night_disp]
-        self.__nightconf_allowed_modes = [0, 1, 2, 3, 4]
-        
+        self.settings_pages = {
+            "change time": 0,
+            "night start": 1,
+            "night end": 2,
+            "day mode": 3,
+            "night mode": 4
+        }
+        self.__settings_current_page = 0
+        self.__settings_current_digit = 3
+        self.__settings_display_funcs = [self.__settings_change_time_disp, self.__settings_night_start_disp, self.__settings_night_end_disp, self.__settings_mode_day_disp, self.__settings_mode_night_disp]
+        self.__settings_do_display_new_time = [True, False, False, False, False]
+        self.__settings_pagecount = len(self.__settings_display_funcs)
+        self.__nightmode_allowed_modes = [0, 1, 2, 3, 4]
+        self.__persistent_data_changed = False
+
         #night mode
         self.default_night_start = [21, 0]
         self.default_night_end = [8, 0]
@@ -96,14 +105,33 @@ class ClockClock24:
         self.night_end = self.default_night_end
         self.night_mode = self.default_night_mode
         self.day_mode = self.default_day_mode
-        self.__nightconf_read_storage()
+        self.__persistent_read_storage()
 
         self.__current_mode_night = -1
         self.night_on = False
 
         self.__current_mode = 0
         self.mode_change_handlers[self.__current_mode](True)  #start with mode
+
+        hour, minute = self.rtc.get_hour_minute()
         self.display_time(hour, minute)
+
+    async def run(self):
+        if not self.movement_done_event.is_set():
+            if not self.is_running():
+                self.movement_done_event.set()
+
+        if self.alarm_flag:
+            self.alarm_flag = False
+            hour, minute = self.rtc.get_hour_minute()
+            self.display_time(hour, minute)
+
+        await asyncio.sleep(0)
+
+    def new_minute_handler(self):
+        if __debug__:
+            print("Interrupt received")
+        self.alarm_flag = True
 
     def cancel_tasks(self):
         if self.async_display_task != None:
@@ -119,12 +147,6 @@ class ClockClock24:
         if self.async_mode_change_task != None:
             self.async_mode_change_task.cancel()
 
-    async def run(self):
-        if not self.movement_done_event.is_set():
-            if not self.is_running():
-                self.movement_done_event.set()
-        await asyncio.sleep(0)
-        
     def display_digit(self, field: int, number: int, direction=0, extra_revs=0):
         self.cancel_tasks()
         self.digit_display.display_digit(field, number, direction, extra_revs)
@@ -132,8 +154,6 @@ class ClockClock24:
     def display_time(self, hour: int, minute: int):
         if __debug__:
             print("New time displayed:", hour, minute)
-
-        self.__current_time = [hour, minute]
         
         if self.night_on:
             start_time_min = self.night_start[0] * 60 + self.night_start[1]
@@ -201,7 +221,8 @@ class ClockClock24:
         self.mode_change_handlers[self.__current_mode](True) # specific initialisation of new mode after display of mode digit is done
         self.input_lock = False
 
-        self.display_time(self.__current_time[0], self.__current_time[1])
+        hour, minute = rtc.get_hour_minute()
+        self.display_time(hour, time)
 
     def get_mode(self):
         return self.__current_mode
@@ -230,12 +251,6 @@ class ClockClock24:
             self.set_speed_all(ClockClock24.stepper_speed_analog)
             self.set_accel_all(ClockClock24.stepper_accel_analog)
     
-    def __change_time(self, start):
-        if start:
-            self.time_handler = self.time_change_handlers[ClockClock24.modes["change time"]]
-            self.set_speed_all(ClockClock24.stepper_speed_fast)
-            self.set_accel_all(ClockClock24.stepper_accel_fast)
-    
     def __night_mode(self, start):
         if start:
             self.time_handler = self.time_change_handlers[ClockClock24.modes["night mode"]]
@@ -244,19 +259,19 @@ class ClockClock24:
         else:
             self.night_on = False
     
-    def __night_mode_config(self, start):
+    def __settings(self, start):
         if start:
-            self.time_handler = self.time_change_handlers[ClockClock24.modes["night mode config"]]
+            self.time_handler = self.time_change_handlers[ClockClock24.modes["settings"]]
             self.set_speed_all(ClockClock24.stepper_speed_fast)
             self.set_accel_all(ClockClock24.stepper_accel_fast)
-            self.__nightconf_current_page = 0
-            self.__nightconf_data_changed = False
-            self.__nightconf_update_display()
+            self.__settings_current_page = 0
+            self.__persistent_data_changed = False
+            self.__settings_update_display()
         else:
-            if self.__nightconf_data_changed:
-                self.__nightconf_data_changed = False
+            if self.__persistent_data_changed:
+                self.__persistent_data_changed = False
 
-                self.__nightconf_write_storage()
+                self.__persistent_write_storage()
 
     def __sleep(self, start):
         if start:
@@ -303,10 +318,9 @@ class ClockClock24:
         for stepper in self.hour_steppers:
             stepper.move_to(int(self.steps_full_rev/12 * (hour%12 + minute/60)), 0)
     
-    def __change_time_new_time(self, hour: int, minute: int):
-        self.cancel_display_tasks()
-        digits = [hour//10, hour%10, minute//10, minute%10]
-        self.digit_display.display_digits(digits, DigitDisplay.animations["stealth"])
+    def __settings_new_time(self, hour: int, minute: int):
+        if self.__settings_do_display_new_time[self.__settings_current_page]  == self.settings_pages["change time"]:
+            self.__settings_update_display()
         
     def __no_new_time(self, hour: int, minute: int):
         if __debug__:
@@ -315,65 +329,76 @@ class ClockClock24:
 
 #endregion
 
-#region nightconf
+#region settings
 
-    def nightconf_next_page(self):
+    def settings_next_page(self):
         if not self.input_lock:
-            self.__nightconf_current_page = (self.__nightconf_current_page + 1) % self.__nightconf_pagecount
+            self.__settings_current_page = (self.__settings_current_page + 1) % self.__settings_pagecount
             if __debug__:
-                print("nightconf next page:", self.__nightconf_current_page)
+                print("settings next page:", self.__settings_current_page)
 
-            self.__nightconf_current_digit = 3
-            self.__nightconf_display_funcs[self.__nightconf_current_page]()
-            self.__nightconf_update_display()
+            self.__settings_current_digit = 3
+            self.__settings_display_funcs[self.__settings_current_page]()
+            self.__settings_update_display()
 
-    def nightconf_next_digit(self):
+    def settings_next_digit(self):
         if not self.input_lock:
-            if self.__nightconf_current_page == 1 or self.__nightconf_current_page == 0:
-                self.__nightconf_current_digit = (self.__nightconf_current_digit - 1) % 4
+            if self.__settings_current_page == 0 or self.__settings_current_page == 1 or self.__settings_current_page == 2:
+                self.__settings_current_digit = (self.__settings_current_digit - 1) % 4
                 if __debug__:
-                    print("nightconf next digit:", self.__nightconf_current_digit)
+                    print("settings next digit:", self.__settigns_current_digit)
 
                 distance = int(self.steps_full_rev * 0.075)
-                for clk_index in self.digit_display.digit_display_indices[self.__nightconf_current_digit]:
+                for clk_index in self.digit_display.digit_display_indices[self.__settings_current_digit]:
                     self.hour_steppers[clk_index].wiggle(distance, 1)
                     self.minute_steppers[clk_index].wiggle(distance, 1)
 
-    def nightconf_incr_decr(self, direction):
+    def settings_incr_decr(self, direction):
         if not self.input_lock:
             if __debug__:
-                print("nightconf incr", direction)
+                print("settings incr", direction)
                 
-            self.__nightconf_data_changed = True
-            
-            if self.__nightconf_current_page == 0:
+            self.__persistent_data_changed = True
+
+            if self.__settings_current_page == 0:
                 time_change_val = [[10, 0], [1, 0], [0, 10], [0, 1]]
-                self.night_start = self.__nightconf_incr_decr_time(self.night_start[0], self.night_start[1], time_change_val[self.__nightconf_current_digit][0] * direction, time_change_val[self.__nightconf_current_digit][1] * direction)
+                rtc.add_to_hour_minute(time_change_val[current_field][0] * direction, time_change_val[current_field][1] * direction)
+                time = self.__settings_incr_decr_time(self.night_start[0], self.night_start[1],
+                                                      time_change_val[self.__settings_current_digit][0] * direction,
+                                                      time_change_val[self.__settings_current_digit][1] * direction)
+
+                self.rtc.set_hour_minute(time[0], time[1])
+
+                if __debug__:
+                    print("changed time:", hour, minute)
+            elif self.__settings_current_page == 1:
+                time_change_val = [[10, 0], [1, 0], [0, 10], [0, 1]]
+                self.night_start = self.__settings_incr_decr_time(self.night_start[0], self.night_start[1], time_change_val[self.__settings_current_digit][0] * direction, time_change_val[self.__settings_current_digit][1] * direction)
                 
                 if __debug__:
                     print("new start time:", self.night_start)
-            elif self.__nightconf_current_page == 1:
+            elif self.__settings_current_page == 2:
                 time_change_val = [[10, 0], [1, 0], [0, 10], [0, 1]]
-                self.night_end = self.__nightconf_incr_decr_time(self.night_end[0], self.night_end[1], time_change_val[self.__nightconf_current_digit][0] * direction, time_change_val[self.__nightconf_current_digit][1] * direction)
+                self.night_end = self.__settings_incr_decr_time(self.night_end[0], self.night_end[1], time_change_val[self.__settings_current_digit][0] * direction, time_change_val[self.__settings_current_digit][1] * direction)
                 
                 if __debug__:
                     print("new end time:", self.night_end)
-            elif self.__nightconf_current_page == 2:
-                index = self.__nightconf_allowed_modes.index(self.day_mode)
-                self.day_mode = self.__nightconf_allowed_modes[(index + direction) % len(self.__nightconf_allowed_modes)]
+            elif self.__settings_current_page == 3:
+                index = self.__nightmode_allowed_modes.index(self.day_mode)
+                self.day_mode = self.__nightmode_allowed_modes[(index + direction) % len(self.__nightmode_allowed_modes)]
                 
                 if __debug__:
                     print("new day mode:", self.day_mode)
             else:
-                index = self.__nightconf_allowed_modes.index(self.night_mode)
-                self.night_mode = self.__nightconf_allowed_modes[(index + direction) % len(self.__nightconf_allowed_modes)]
+                index = self.__nightmode_allowed_modes.index(self.night_mode)
+                self.night_mode = self.__nightmode_allowed_modes[(index + direction) % len(self.__nightmode_allowed_modes)]
                 
                 if __debug__:
                     print("new night mode:", self.night_mode)
 
-            self.__nightconf_update_display()
+            self.__settings_update_display()
 
-    def __nightconf_incr_decr_time(self, hour, minute, h_incr, m_incr):
+    def __settings_incr_decr_time(self, hour, minute, h_incr, m_incr):
         # combine times
         combined_hour = hour + h_incr
         combined_minute = minute + m_incr
@@ -393,22 +418,31 @@ class ClockClock24:
 
         return [combined_hour, combined_minute]
 
-    def __nightconf_update_display(self):
-        self.__nightconf_display_funcs[self.__nightconf_current_page]()
+    def __settings_update_display(self):
+        self.__settings_display_funcs[self.__settings_current_page]()
 
-    def __nightconf_start_disp(self):
-        self.__change_time_new_time(self.night_start[0], self.night_start[1])
+    def __settings_change_time_disp(self):
+        hour, minute = self.rtc.get_hour_minute()
+        self.__settings_display_time(hour, minute)
 
-    def __nightconf_end_disp(self):
-        self.__change_time_new_time(self.night_end[0], self.night_end[1])
+    def __settings_night_start_disp(self):
+        self.__settings_display_time(self.night_end[0], self.night_end[1])
 
-    def __nightconf_day_disp(self):
+    def __settings_night_end_disp(self):
+        self.__settings_display_time(self.night_end[0], self.night_end[1])
+
+    def __settings_mode_day_disp(self):
         self.digit_display.display_mode(self.day_mode)
 
-    def __nightconf_night_disp(self):
+    def __settings_mode_night_disp(self):
         self.digit_display.display_mode(self.night_mode)
 
-    def __nightconf_read_storage(self):
+    def __settings_display_time(self, hour, minute):
+        self.cancel_display_tasks()
+        digits = [hour // 10, hour % 10, minute // 10, minute % 10]
+        self.digit_display.display_digits(digits, DigitDisplay.animations["shortest path"])
+
+    def __persistent_read_storage(self):
         try:
             f = open(self.night_config_file, "r")
             string = f.readline()
@@ -423,9 +457,9 @@ class ClockClock24:
                 raise ValueError("Bad stored data")
             if not 0 <= self.night_end[1] <= 59:
                 raise ValueError("Bad stored data")
-            if self.night_mode not in self.__nightconf_allowed_modes:
+            if self.night_mode not in self.__nightmode_allowed_modes:
                 raise ValueError("Bad stored data")
-            if self.day_mode not in self.__nightconf_allowed_modes:
+            if self.day_mode not in self.__nightmode_allowed_modes:
                 raise ValueError("Bad stored data")
         except Exception as e:
             if __debug__:
@@ -435,9 +469,9 @@ class ClockClock24:
             self.night_mode = self.default_night_mode
             self.day_mode = self.default_day_mode
 
-            self.__nightconf_write_storage()
+            self.__persistent_write_storage()
 
-    def __nightconf_write_storage(self):
+    def __persistent_write_storage(self):
         data_str = json.dumps((self.night_start, self.night_end, self.night_mode, self.day_mode), separators=None)
         f = open(self.night_config_file, "w")
         f.write(data_str)
