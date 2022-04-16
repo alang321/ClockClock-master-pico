@@ -1,10 +1,10 @@
-import machine
-import time
 import random
-import ucollections
 from ClockStepperModule import ClockStepper
 from ClockStepperModule import ClockModule
 from DigitDisplay import DigitDisplay
+import uasyncio as asyncio
+import os
+import json
 
 class ClockClock24:
     #fast speed used when showing mode numbers and similar
@@ -28,16 +28,15 @@ class ClockClock24:
       "visual": 1, #every timechange has choreographies and stuff
       "shortest path": 2, #move to new poosition with shortest path
       "analog": 3, # every clock is a normal clock
-      "change time": 4, # mode geared towards changing time, fast and minimal movements to display time
-      "sleep": 5 # move all steppers to 6 o clock (default) position and disable stepper drivers
+      "sleep": 4, # move all steppers to 6 o clock (default) position and disable stepper drivers
+      "change time": 5,
+      "night mode": 6,
+      "night mode config": 7,
       }
     
-    
-    max_waiting_queue_size = 5
-    max_delay_queue_size = 48 #one delayed item for every stepper
-    
-    def __init__(self, slave_adr_list: List[int], i2c_bus_list: List[machine.I2C], mode, steps_full_rev = 4320):
+    def __init__(self, slave_adr_list, i2c_bus_list, mode, hour=10, minute=10, steps_full_rev=4320):
         self.steps_full_rev = steps_full_rev
+        self.__current_time = [hour, minute]
         
         self.visual_animation_ids = [DigitDisplay.animations["extra revs"], #these get shuffled randomly when ever at end of list
                                      DigitDisplay.animations["straight wave"],
@@ -46,14 +45,15 @@ class ClockClock24:
                                      DigitDisplay.animations["opposites"],
                                      DigitDisplay.animations["field lines"],
                                      DigitDisplay.animations["equipotential"],
-                                     DigitDisplay.animations["speedy clock"]]
+                                     DigitDisplay.animations["speedy clock"],
+                                     DigitDisplay.animations["random"]]
         self.random_shuffle(self.visual_animation_ids)
         self.animation_index = 0
-        
-        #tuples of format: ["function", "arguments"
-        self.waiting_queue = [] # a queue where the items get called when the current move is done
-        #tuples of format: ["function", "arguments", "start_time"]
-        self.delay_queue = [] # a queue where the items get called when the current move is done
+
+        #asyncio
+        self.async_display_task = None  # currently running asynchronous task that has to be cancelled
+        self.async_mode_change_task = None  # currently running asynchronous task that has to be cancelled
+        self.movement_done_event = asyncio.Event()
         
         self.clock_modules = [ClockModule(i2c_bus_list[module_index], slave_adr_list[module_index], steps_full_rev) for module_index in range(len(slave_adr_list))]
         
@@ -62,27 +62,104 @@ class ClockClock24:
         
         self.digit_display = DigitDisplay(self)
 
-        self.mode_change_handlers = [self.__stealth, self.__visual, self.__shortest_path, self.__analog, self.__change_time, self.__sleep]
+        self.mode_change_handlers = [self.__stealth, self.__visual, self.__shortest_path, self.__analog, self.__sleep, self.__change_time, self.__night_mode, self.__night_mode_config]
         self.time_change_handlers = [self.__stealth_new_time,
                                      self.__visual_new_time,
                                      self.__shortest_path_new_time,
                                      self.__analog_new_time,
+                                     self.__no_new_time,
                                      self.__change_time_new_time,
+                                     self.__no_new_time,
                                      self.__no_new_time]
         self.time_handler = None
-        self.__current_mode = -1
         self.current_speed = -1
         self.current_accel = -1
-        self.set_mode(mode)
+
+        self.input_lock = False # gets turned on during a mode change being display
         
-    def display_digit(self, field: int, number: int, direction = 0, extra_revs = 0):
-        self.clear_delay_queue()
-        self.clear_waiting_queue()
+        #night mode config
+        self.__nightconf_pagecount = 4
+        self.__nightconf_current_page = 0
+        self.__nightconf_current_digit = 3
+        self.__nightconf_data_changed = False
+        self.__nightconf_display_funcs = [self.__nightconf_start_disp, self.__nightconf_end_disp, self.__nightconf_day_disp, self.__nightconf_night_disp]
+        self.__nightconf_allowed_modes = [0, 1, 2, 3, 4]
+        
+        #night mode
+        self.default_night_start = [21, 0]
+        self.default_night_end = [8, 0]
+        self.default_night_mode = 0
+        self.default_day_mode = 1
+        self.night_config_file = "night_config.txt"
+        self.night_start = self.default_night_start
+        self.night_end = self.default_night_end
+        self.night_mode = self.default_night_mode
+        self.day_mode = self.default_day_mode
+        self.__nightconf_read_storage()
+
+        self.__current_mode_night = -1
+        self.night_on = False
+
+        self.__current_mode = mode
+        self.mode_change_handlers[mode](True)  #start with mode
+        self.display_time(hour, minute)
+
+    def cancel_tasks(self):
+        if self.async_display_task != None:
+            self.async_display_task.cancel()
+        if self.async_mode_change_task != None:
+            self.async_mode_change_task.cancel()
+            
+    def cancel_display_tasks(self):
+        if self.async_display_task != None:
+            self.async_display_task.cancel()
+            
+    def cancel_mode_tasks(self):
+        if self.async_mode_change_task != None:
+            self.async_mode_change_task.cancel()
+
+    async def run(self):
+        if not self.movement_done_event.is_set():
+            if not self.is_running():
+                self.movement_done_event.set()
+        await asyncio.sleep(0)
+        
+    def display_digit(self, field: int, number: int, direction=0, extra_revs=0):
+        self.cancel_tasks()
         self.digit_display.display_digit(field, number, direction, extra_revs)
     
     def display_time(self, hour: int, minute: int):
-        self.clear_delay_queue()
-        self.clear_waiting_queue()
+        if __debug__:
+            print("New time displayed:", hour, minute)
+
+        self.__current_time = [hour, minute]
+        
+        if self.night_on:
+            start_time_min = self.night_start[0] * 60 + self.night_start[1]
+            end_time_min = self.night_end[0] * 60 + self.night_end[1]
+            curr_time_min = hour * 60 + minute
+            
+            is_night = False
+            if start_time_min < end_time_min:
+                is_night = (start_time_min <= curr_time_min <= end_time_min)
+            else:
+                is_night = (start_time_min <= curr_time_min or curr_time_min <= end_time_min)
+            
+            if is_night:
+                if __debug__:
+                    print("its night")
+                if self.__current_mode_night != self.night_mode:
+                    self.mode_change_handlers[self.day_mode](False)
+                    self.__current_mode_night = self.night_mode
+                    self.mode_change_handlers[self.night_mode](True)
+            else:
+                if __debug__:
+                    print("its day")
+                if self.__current_mode_night != self.day_mode:
+                    self.mode_change_handlers[self.night_mode](False)
+                    self.__current_mode_night = self.day_mode
+                    self.mode_change_handlers[self.day_mode](True)
+                   
         self.time_handler(hour, minute)
         
     def swap(self, index: int):
@@ -94,120 +171,116 @@ class ClockClock24:
         
         self.minute_steppers[index].move_to(hour_pos, 0)
         self.hour_steppers[index].move_to(minute_pos, 0)
-        
-    def run(self):
-        self.run_waiting_queue()
-        self.run_delay_queue()
-        
-    def run_delay_queue(self):
-        rm_indices = [] # indices to be removed
-        
-        for index, item in enumerate(self.delay_queue):
-            if time.ticks_diff(item[2], time.ticks_ms()) <= 0: #if start time has cometh
-                rm_indices.append(index)
-                item[0](*item[1])
-                
-        for index in reversed(rm_indices):
-            del self.delay_queue[index]
-                
-    def clear_delay_queue(self):
-        self.delay_queue.clear()
-        
-    def add_to_delay_queue(self, queue_item) -> bool:
-        if len(self.delay_queue) < ClockClock24.max_delay_queue_size:
-            self.delay_queue.append(queue_item)
-            return True
-        return False
-        
-    def get_start_time_ms(self, delay_ms: int) -> int:
-        """
-        get start time corresponding to a certain delay from now in milliseconds
-        """
-        return int(time.ticks_add(time.ticks_ms(), delay_ms))
-        
-    def run_waiting_queue(self):
-        """
-        calls a function with given args in queue if the current move is finished, ie. when self.is_running returns false
-        """
-        if self.waiting_queue:
-            if not self.is_running():
-                item = self.waiting_queue.pop(0)
-                item[0](*item[1])
-            
-    def clear_waiting_queue(self):
-        self.waiting_queue.clear()
-        
-    def add_to_waiting_queue(self, queue_item) -> bool:
-        if len(self.waiting_queue) < ClockClock24.max_waiting_queue_size:
-            self.waiting_queue.append(queue_item)
-            return True
-        return False
-        
-    def set_mode(self, mode: int):
-        if self.__current_mode != -1:
-            self.mode_change_handlers[self.__current_mode](False) # "destructor" of old mode
-        
+
+#region mode change
+
+    async def set_mode(self, mode: int):
+        self.cancel_tasks()
+        self.async_mode_change_task = asyncio.create_task(self.__set_mode(mode))
+
+    async def __set_mode(self, mode: int):
         if __debug__:
-            print("New mode:",mode)
-        
-        self.clear_delay_queue()
-        self.clear_waiting_queue()    
+            print("New mode:", mode)
+
+        self.input_lock = True
+        self.mode_change_handlers[self.__current_mode](False) #"destructor" of the old mode
         self.__current_mode = mode
         self.time_handler = self.__no_new_time # an empty time handler so a new time doesnt interrupt the displaying of the current mode
         
         self.enable_disable_driver(True)
         self.set_speed_all(ClockClock24.stepper_speed_fast)
         self.set_accel_all(ClockClock24.stepper_accel_fast)
-        self.digit_display.display_digits([0, 0, 0, self.__current_mode], DigitDisplay.animations["stealth"])
+        self.digit_display.display_mode(mode)
         
-        self.add_to_waiting_queue((self.mode_change_handlers[self.__current_mode], (True,))) # specific initialisation of new mode after display of mode digit is done
+        self.movement_done_event.clear()
+        await self.movement_done_event.wait()
         
+        await asyncio.sleep(2) #so digit is displayed for atleast a few seconds
+        
+        self.mode_change_handlers[self.__current_mode](True) # specific initialisation of new mode after display of mode digit is done
+        self.input_lock = False
+
+        self.display_time(self.__current_time[0], self.__current_time[1])
+
     def get_mode(self):
         return self.__current_mode
     
-    def __stealth(self):
-        self.time_handler = self.time_change_handlers[self.__current_mode]
-        self.set_speed_all(ClockClock24.stepper_speed_stealth)
-        self.set_accel_all(ClockClock24.stepper_accel_stealth)
+    def __stealth(self, start):
+        if start:
+            self.time_handler = self.time_change_handlers[ClockClock24.modes["stealth"]]
+            self.set_speed_all(ClockClock24.stepper_speed_stealth)
+            self.set_accel_all(ClockClock24.stepper_accel_stealth)
     
-    def __shortest_path(self):
-        self.time_handler = self.time_change_handlers[self.__current_mode]
-        self.set_speed_all(ClockClock24.stepper_speed_default)
-        self.set_accel_all(ClockClock24.stepper_accel_default)
+    def __shortest_path(self, start):
+        if start:
+            self.time_handler = self.time_change_handlers[ClockClock24.modes["shortest path"]]
+            self.set_speed_all(ClockClock24.stepper_speed_default)
+            self.set_accel_all(ClockClock24.stepper_accel_default)
     
-    def __visual(self, start: bool):
-        self.time_handler = self.time_change_handlers[self.__current_mode]
-        self.set_speed_all(ClockClock24.stepper_speed_default)
-        self.set_accel_all(ClockClock24.stepper_accel_default)
+    def __visual(self, start):
+        if start:
+            self.time_handler = self.time_change_handlers[ClockClock24.modes["visual"]]
+            self.set_speed_all(ClockClock24.stepper_speed_default)
+            self.set_accel_all(ClockClock24.stepper_accel_default)
     
-    def __analog(self):
-        self.time_handler = self.time_change_handlers[self.__current_mode]
-        self.set_speed_all(ClockClock24.stepper_speed_analog)
-        self.set_accel_all(ClockClock24.stepper_accel_analog)
+    def __analog(self, start):
+        if start:
+            self.time_handler = self.time_change_handlers[ClockClock24.modes["analog"]]
+            self.set_speed_all(ClockClock24.stepper_speed_analog)
+            self.set_accel_all(ClockClock24.stepper_accel_analog)
     
-    def __change_time(self):
-        self.time_handler = self.time_change_handlers[self.__current_mode]
-        self.set_speed_all(ClockClock24.stepper_speed_fast)
-        self.set_accel_all(ClockClock24.stepper_accel_fast)
+    def __change_time(self, start):
+        if start:
+            self.time_handler = self.time_change_handlers[ClockClock24.modes["change time"]]
+            self.set_speed_all(ClockClock24.stepper_speed_fast)
+            self.set_accel_all(ClockClock24.stepper_accel_fast)
+    
+    def __night_mode(self, start):
+        if start:
+            self.time_handler = self.time_change_handlers[ClockClock24.modes["night mode"]]
+            self.night_on = True
+            self.__current_mode_night = -1
+        else:
+            self.night_on = False
+    
+    def __night_mode_config(self, start):
+        if start:
+            self.time_handler = self.time_change_handlers[ClockClock24.modes["night mode config"]]
+            self.set_speed_all(ClockClock24.stepper_speed_fast)
+            self.set_accel_all(ClockClock24.stepper_accel_fast)
+            self.__nightconf_current_page = 0
+            self.__nightconf_data_changed = False
+            self.__nightconf_update_display()
+        else:
+            if self.__nightconf_data_changed:
+                self.__nightconf_data_changed = False
+
+                self.__nightconf_write_storage()
+
+    def __sleep(self, start):
+        if start:
+            self.time_handler = self.time_change_handlers[self.__current_mode]
+            self.set_speed_all(ClockClock24.stepper_speed_default)
+            self.set_accel_all(ClockClock24.stepper_accel_default)
         
-    def __sleep(self):
-        self.time_handler = self.time_change_handlers[self.__current_mode]
-        self.set_speed_all(ClockClock24.stepper_speed_default)
-        self.set_accel_all(ClockClock24.stepper_accel_default)
-        
-        self.move_to_all(int(0.5*self.steps_full_rev))
-        
-        self.add_to_waiting_queue((self.enable_disable_driver, (False,)))
-    
+            self.move_to_all(int(0.5*self.steps_full_rev))
+
+#endregion
+
+#region  new time handlers
+
     def __stealth_new_time(self, hour: int, minute: int):
+        self.cancel_display_tasks()
         digits = [hour//10, hour%10, minute//10, minute%10]
         self.digit_display.display_digits(digits, DigitDisplay.animations["stealth"])
         
     def __shortest_path_new_time(self, hour: int, minute: int):
+        self.cancel_display_tasks()
         digits = [hour//10, hour%10, minute//10, minute%10]
         self.digit_display.display_digits(digits, DigitDisplay.animations["shortest path"])
         
     def __visual_new_time(self, hour: int, minute: int):
+        self.cancel_display_tasks()
         digits = [hour//10, hour%10, minute//10, minute%10]
         
         if __debug__:
@@ -222,6 +295,7 @@ class ClockClock24:
             self.random_shuffle(self.visual_animation_ids)     
     
     def __analog_new_time(self, hour: int, minute: int):
+        self.cancel_display_tasks()
         for stepper in self.minute_steppers:
             stepper.move_to(int(self.steps_full_rev/60 * minute), 0)
             
@@ -229,82 +303,187 @@ class ClockClock24:
             stepper.move_to(int(self.steps_full_rev/12 * (hour%12 + minute/60)), 0)
     
     def __change_time_new_time(self, hour: int, minute: int):
+        self.cancel_display_tasks()
         digits = [hour//10, hour%10, minute//10, minute%10]
         self.digit_display.display_digits(digits, DigitDisplay.animations["stealth"])
         
     def __no_new_time(self, hour: int, minute: int):
+        if __debug__:
+            print("New time not displayed")
         return
-        
-    #commands
-    def enable_disable_driver(self, enable_disable: bool) -> bool:
+
+#endregion
+
+#region nightconf
+
+    def nightconf_next_page(self):
+        if not self.input_lock:
+            self.__nightconf_current_page = (self.__nightconf_current_page + 1) % self.__nightconf_pagecount
+            if __debug__:
+                print("nightconf next page:", self.__nightconf_current_page)
+
+            self.__nightconf_current_digit = 3
+            self.__nightconf_display_funcs[self.__nightconf_current_page]()
+            self.__nightconf_update_display()
+
+    def nightconf_next_digit(self):
+        if not self.input_lock:
+            if self.__nightconf_current_page == 1 or self.__nightconf_current_page == 0:
+                self.__nightconf_current_digit = (self.__nightconf_current_digit - 1) % 4
+                if __debug__:
+                    print("nightconf next digit:", self.__nightconf_current_digit)
+
+                distance = int(self.steps_full_rev * 0.1)
+                for clk_index in self.digit_display.digit_display_indices[self.__nightconf_current_digit]:
+                    self.hour_steppers[clk_index].wiggle(distance, 1)
+                    self.minute_steppers[clk_index].wiggle(distance, -1)
+
+    def nightconf_incr_decr(self, direction):
+        if not self.input_lock:
+            if __debug__:
+                print("nightconf incr", direction)
+                
+            self.__nightconf_data_changed = True
+            
+            if self.__nightconf_current_page == 0:
+                time_change_val = [[10, 0], [1, 0], [0, 10], [0, 1]]
+                self.night_start = self.__nightconf_incr_decr_time(self.night_start[0], self.night_start[1], time_change_val[self.__nightconf_current_digit][0] * direction, time_change_val[self.__nightconf_current_digit][1] * direction)
+                
+                if __debug__:
+                    print("new start time:", self.night_start)
+            elif self.__nightconf_current_page == 1:
+                time_change_val = [[10, 0], [1, 0], [0, 10], [0, 1]]
+                self.night_end = self.__nightconf_incr_decr_time(self.night_end[0], self.night_end[1], time_change_val[self.__nightconf_current_digit][0] * direction, time_change_val[self.__nightconf_current_digit][1] * direction)
+                
+                if __debug__:
+                    print("new end time:", self.night_end)
+            elif self.__nightconf_current_page == 2:
+                index = self.__nightconf_allowed_modes.index(self.day_mode)
+                self.day_mode = self.__nightconf_allowed_modes[(index + direction) % len(self.__nightconf_allowed_modes)]
+                
+                if __debug__:
+                    print("new day mode:", self.day_mode)
+            else:
+                index = self.__nightconf_allowed_modes.index(self.night_mode)
+                self.night_mode = self.__nightconf_allowed_modes[(index + direction) % len(self.__nightconf_allowed_modes)]
+                
+                if __debug__:
+                    print("new night mode:", self.night_mode)
+
+            self.__nightconf_update_display()
+
+    def __nightconf_incr_decr_time(self, hour, minute, h_incr, m_incr):
+        # combine times
+        combined_hour = hour + h_incr
+        combined_minute = minute + m_incr
+
+        if combined_minute >= 0:
+            combined_minute = combined_minute % 60
+        else:
+            # (combined_minute + (-combined_minute%60))//60 -> "floor" towards zero for negative numbers
+            combined_minute = combined_minute % -60
+            if combined_minute < 0:
+                combined_minute = combined_minute + 60
+
+        if combined_hour >= 24:
+            combined_hour = 0
+        elif combined_hour < 0:
+            combined_hour = 23
+
+        return [combined_hour, combined_minute]
+
+    def __nightconf_update_display(self):
+        self.__nightconf_display_funcs[self.__nightconf_current_page]()
+
+    def __nightconf_start_disp(self):
+        self.__change_time_new_time(self.night_start[0], self.night_start[1])
+
+    def __nightconf_end_disp(self):
+        self.__change_time_new_time(self.night_end[0], self.night_end[1])
+
+    def __nightconf_day_disp(self):
+        self.digit_display.display_mode(self.day_mode)
+
+    def __nightconf_night_disp(self):
+        self.digit_display.display_mode(self.night_mode)
+
+    def __nightconf_read_storage(self):
+        try:
+            f = open(self.night_config_file, "r")
+            string = f.readline()
+            self.night_start, self.night_end, self.night_mode, self.day_mode = json.loads(string)
+            f.close()
+
+            if not 0 <= self.night_start[0] <= 23:
+                raise ValueError("Bad stored data")
+            if not 0 <= self.night_start[1] <= 59:
+                raise ValueError("Bad stored data")
+            if not 0 <= self.night_end[0] <= 23:
+                raise ValueError("Bad stored data")
+            if not 0 <= self.night_end[1] <= 59:
+                raise ValueError("Bad stored data")
+            if self.night_mode not in self.__nightconf_allowed_modes:
+                raise ValueError("Bad stored data")
+            if self.day_mode not in self.__nightconf_allowed_modes:
+                raise ValueError("Bad stored data")
+        except Exception as e:
+            if __debug__:
+                print(str(e))
+            self.night_start = self.default_night_start
+            self.night_end = self.default_night_end
+            self.night_mode = self.default_night_mode
+            self.day_mode = self.default_day_mode
+
+            self.__nightconf_write_storage()
+
+    def __nightconf_write_storage(self):
+        data_str = json.dumps((self.night_start, self.night_end, self.night_mode, self.day_mode), separators=None)
+        f = open(self.night_config_file, "w")
+        f.write(data_str)
+        f.close()
+        return
+
+#endregion
+
+#region commands
+
+    def enable_disable_driver(self, enable_disable: bool):
         """
         true to enable driver of module
         false to disable
         """
-        all_slaves_found = True
-        
         for module in self.clock_modules:
-            all_slaves_found = all_slaves_found and module.enable_disable_driver_module(enable_disable)
-                
-        return all_slaves_found
+            module.enable_disable_driver_module(enable_disable)
     
-    def set_speed_all(self, speed: int) -> bool:
-        all_slaves_found = True
-        
+    def set_speed_all(self, speed: int):
         self.current_speed = speed
         for module in self.clock_modules:
-            all_slaves_found = all_slaves_found and module.set_speed_module(speed)
-                
-        return all_slaves_found
+            module.set_speed_module(speed)
     
-    def set_accel_all(self, accel: int) -> bool:
-        all_slaves_found = True
-        
+    def set_accel_all(self, accel: int):
         self.current_accel = accel
         for module in self.clock_modules:
-            all_slaves_found = all_slaves_found and module.set_accel_module(accel)
-                
-        return all_slaves_found
+            module.set_accel_module(accel)
     
-    def move_to_all(self, position: int, direction = 0) -> bool:
-        all_slaves_found = True
-        
+    def move_to_all(self, position: int, direction = 0):
         for module in self.clock_modules:
-            all_slaves_found = all_slaves_found and module.move_to_module(position, direction)
-                
-        return all_slaves_found
+            module.move_to_module(position, direction)
     
-    def move_to_extra_revs_all(self, position: int, direction: int, extra_revs: int) -> bool:
-        all_slaves_found = True
-        
+    def move_to_extra_revs_all(self, position: int, direction: int, extra_revs: int):
         for module in self.clock_modules:
-            all_slaves_found = all_slaves_found and module.move_to_extra_revs_module(position, direction, extra_revs)
-                
-        return all_slaves_found
+            module.move_to_extra_revs_module(position, direction, extra_revs)
     
-    def move_all(self, distance: int, direction: int) -> bool:
-        all_slaves_found = True
-        
+    def move_all(self, distance: int, direction: int):
         for module in self.clock_modules:
-            all_slaves_found = all_slaves_found and module.move_module(distance, direction)
-                
-        return all_slaves_found
+            module.move_module(distance, direction)
         
-    def stop_all(self) -> bool:
-        all_slaves_found = True
-        
+    def stop_all(self):
         for module in self.clock_modules:
-            all_slaves_found = all_slaves_found and module.stop_module()
-                
-        return all_slaves_found
-    
-    def falling_pointer(self) -> bool:
-        all_slaves_found = True
-        
+            module.stop_module()
+
+    def falling_pointer(self): 
         for module in self.clock_modules:
-            all_slaves_found = all_slaves_found and module.falling_pointer_module()
-                
-        return all_slaves_found
+            module.falling_pointer_module()
 
     def is_running(self) -> bool: #returns True if stepper is running
         for module in self.clock_modules:
@@ -312,6 +491,8 @@ class ClockClock24:
                 return True
         
         return False
+
+#endregion
     
     @staticmethod
     def random_shuffle(seq):
