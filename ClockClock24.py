@@ -343,7 +343,7 @@ class ClockClock24:
                 if __debug__:
                     print("settings next digit:", self.__settings_current_digit)
 
-                distance = int(self.steps_full_rev * 0.075)
+                distance = int(self.steps_full_rev * 0.045)
                 for clk_index in self.digit_display.digit_display_indices[self.__settings_current_digit]:
                     self.hour_steppers[clk_index].wiggle(distance, 1)
                     self.minute_steppers[clk_index].wiggle(distance, 1)

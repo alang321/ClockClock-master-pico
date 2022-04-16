@@ -40,6 +40,7 @@ async def main_loop():
     buttons = [button_mode, button_plus, button_minus, button_next_digit]
 
     button_mode.attachClick(cycle_mode)
+    button_mode.attachLongPressStop(cycle_mode)
     button_plus.attachClick(increment_digit)
     button_minus.attachClick(decrement_digit)
     button_next_digit.attachClick(cycle_field)
