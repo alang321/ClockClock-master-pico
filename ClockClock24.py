@@ -92,14 +92,18 @@ class ClockClock24:
         self.__settings_display_funcs = [self.__settings_change_time_disp, self.__settings_night_start_disp, self.__settings_night_end_disp, self.__settings_mode_day_disp, self.__settings_mode_night_disp]
         self.__settings_do_display_new_time = [True, False, False, False, False]
         self.__settings_pagecount = len(self.__settings_display_funcs)
-        self.__nightmode_allowed_modes = [0, 1, 2, 3, 4]
+        self.__nightmode_allowed_modes = [ClockClock24.modes["visual"],
+                                          ClockClock24.modes["shortest path"],
+                                          ClockClock24.modes["stealth"],
+                                          ClockClock24.modes["analog"],
+                                          ClockClock24.modes["sleep"]]
         self.__persistent_data_changed = False
 
         #night mode
         self.default_night_start = [21, 0]
         self.default_night_end = [8, 0]
-        self.default_night_mode = 0
-        self.default_day_mode = 1
+        self.default_night_mode = ClockClock24.modes["stealth"]
+        self.default_day_mode = ClockClock24.modes["visual"]
         self.night_config_file = "night_config.txt"
         self.night_start = self.default_night_start
         self.night_end = self.default_night_end
@@ -181,8 +185,8 @@ class ClockClock24:
         self.mode_change_handlers[self.__current_mode](True) # specific initialisation of new mode after display of mode digit is done
         self.input_lock = False
 
-        hour, minute = rtc.get_hour_minute()
-        self.display_time(hour, time)
+        hour, minute = self.rtc.get_hour_minute()
+        self.display_time(hour, minute)
 
     def get_mode(self):
         return self.__current_mode
@@ -310,7 +314,7 @@ class ClockClock24:
             stepper.move_to(int(self.steps_full_rev/12 * (hour%12 + minute/60)), 0)
     
     def __settings_new_time(self, hour: int, minute: int):
-        if self.__settings_do_display_new_time[self.__settings_current_page]  == self.settings_pages["change time"]:
+        if self.__settings_do_display_new_time[self.__settings_current_page]:
             self.__settings_update_display()
         
     def __no_new_time(self, hour: int, minute: int):
@@ -337,7 +341,7 @@ class ClockClock24:
             if self.__settings_current_page == 0 or self.__settings_current_page == 1 or self.__settings_current_page == 2:
                 self.__settings_current_digit = (self.__settings_current_digit - 1) % 4
                 if __debug__:
-                    print("settings next digit:", self.__settigns_current_digit)
+                    print("settings next digit:", self.__settings_current_digit)
 
                 distance = int(self.steps_full_rev * 0.075)
                 for clk_index in self.digit_display.digit_display_indices[self.__settings_current_digit]:
@@ -361,7 +365,7 @@ class ClockClock24:
                 self.rtc.set_hour_minute(time[0], time[1])
 
                 if __debug__:
-                    print("changed time:", hour, minute)
+                    print("changed time:", time)
             elif self.__settings_current_page == 1:
                 time_change_val = [[10, 0], [1, 0], [0, 10], [0, 1]]
                 self.night_start = self.__settings_incr_decr_time(self.night_start[0], self.night_start[1], time_change_val[self.__settings_current_digit][0] * direction, time_change_val[self.__settings_current_digit][1] * direction)
@@ -417,7 +421,7 @@ class ClockClock24:
         self.__settings_display_time(hour, minute)
 
     def __settings_night_start_disp(self):
-        self.__settings_display_time(self.night_end[0], self.night_end[1])
+        self.__settings_display_time(self.night_start[0], self.night_start[1])
 
     def __settings_night_end_disp(self):
         self.__settings_display_time(self.night_end[0], self.night_end[1])

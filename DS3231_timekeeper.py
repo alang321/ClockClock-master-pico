@@ -37,7 +37,7 @@ class DS3231_timekeeper:
     def set_hour_minute(self, hour, minute):
         #second 1 so alarm is not triggered, since this is inconsistent somehow
         self.set_datetime(urtc.datetime_tuple(year=2000, month=1, day=21, weekday=5, hour=hour, minute=minute, second=1, millisecond=0)) 
-    
+
     def alarm_handler(self, pin):
         self.rtc.alarm(False)
         if self.enable_minute_alarm:

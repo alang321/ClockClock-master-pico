@@ -4,7 +4,7 @@ from ClockClock24 import ClockClock24
 import uasyncio as asyncio
 from OneButton import OneButton
 
-#button handlers
+# button handlers
 def cycle_mode(pin):
     curr_mode = clockclock.get_mode()
     asyncio.create_task(clockclock.set_mode((curr_mode + 1) % len(ClockClock24.modes)))
