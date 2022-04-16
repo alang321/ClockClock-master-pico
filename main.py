@@ -96,7 +96,7 @@ async def main_loop():
         for button in buttons:
             button.tick()
         
-        await asyncio.sleep_ms(10)
+        await asyncio.sleep_ms(0)
 
 i2c1 = machine.I2C(1,sda=machine.Pin(14), scl=machine.Pin(3), freq=100000)
 i2c0 = machine.I2C(0,sda=machine.Pin(16), scl=machine.Pin(17), freq=100000)

@@ -40,6 +40,8 @@ class DigitDisplay:
     digit_display_indices = [[0, 1, 8, 9, 16, 17], [2, 3, 10, 11, 18, 19], [4, 5, 12, 13, 20, 21], [6, 7, 14, 15, 22, 23]]
     column_indices = [[0, 8, 16], [1, 9, 17], [2, 10, 18], [3, 11, 19], [4, 12, 20], [5, 13, 21], [6, 14, 22], [7, 15, 23]]
     row_indices = [[0, 1, 2, 3, 4, 5, 6, 7], [8, 9, 10, 11, 12, 13, 14, 15], [16, 17, 18, 19, 20, 21, 22, 23]]
+
+    row_module_indices = [[0, 1], [2, 3], [4, 5]]
     
     # fractional position of the pointer, first sublist is hour hand second is minute hand, 0.0 at the 12 o clock position and 0.5 at 6 o clock
     # from top left, rows first
@@ -67,7 +69,8 @@ class DigitDisplay:
       "field lines":  7, # visualize electric vector field of 2 point charges
       "equipotential": 8, # visualises equipotential line directions of 2 point charges
       "speedy clock": 9, # move minute and hour hand at different speeds to move somewhat like a clock althoug hour hand doesnt move as slow
-      "random": 10 # all clocks move to unique radnom position, once all clocks reach the move to correct one with shortest path
+      "random": 10, # all clocks move to unique radnom position, once all clocks reach the move to correct one with shortest path
+      "handoff": 11 # all move pointing down, then bottom row starts opposing pointer thing, when done second row starts ("handoff") and so on
       }
     
     def __init__(self, clockclock):
@@ -95,7 +98,8 @@ class DigitDisplay:
             self.new_pose_field_lines,
             self.new_pose_equipotential,
             self.new_pose_speedy_clock,
-            self.new_pose_random
+            self.new_pose_random,
+            self.new_pose_handoff
           ]
         
         self.digits_pointer_pos_abs = [[[int(frac * self.steps_full_rev) for frac in hour_minute] for hour_minute in number] for number in DigitDisplay.digits_pointer_pos_frac]
@@ -134,8 +138,10 @@ class DigitDisplay:
             for sub_index, clk_index in enumerate(self.digit_display_indices[field]):
                 new_positions_0[clk_index] = self.digits_pointer_pos_abs[digit][0][sub_index]
                 new_positions_1[clk_index] = self.digits_pointer_pos_abs[digit][1][sub_index]
-                
-        self.__new_pose_stealth(new_positions_0, new_positions_1)
+
+        for clk_index in range(24):
+            self.hour_steppers[clk_index].move_to(new_positions_0[clk_index], 0)
+            self.minute_steppers[clk_index].move_to(new_positions_1[clk_index], 0)
                 
     def display_digits(self, digits, animation_id = 0):
         """Display all 4 digits simultaneously on the clock
@@ -558,6 +564,36 @@ class DigitDisplay:
 
         self.clockclock.movement_done_event.clear()
         await self.clockclock.movement_done_event.wait()
+
+        for clk_index in range(24):
+            self.hour_steppers[clk_index].move_to(new_positions_h[clk_index], 0)
+            self.minute_steppers[clk_index].move_to(new_positions_m[clk_index], 0)
+
+    async def new_pose_handoff(self, new_positions_h, new_positions_m):
+        """all move pointing down, then bottom row starts opposing pointer thing, when done second row starts ("handoff") and so on
+
+        Parameters
+        ----------
+        new_positions_h : List[int]
+            the positions to display for hour steppers, should int arrays of length 24
+        new_positions_m : List[int]
+            the positions to display for hour steppers, should int arrays of length 24
+        """
+        start_pos = 0
+        end_pos = int(self.steps_full_rev * 0.5)
+
+        self.clockclock.move_to_all(start_pos, 0)
+
+        self.clockclock.movement_done_event.clear()
+        await self.clockclock.movement_done_event.wait()
+
+        for clk_indices in self.row_indices:
+            for clk_index in clk_indices:
+                self.hour_steppers[clk_index].move_to(end_pos, 1)
+                self.minute_steppers[clk_index].move_to(end_pos, -1)
+
+            self.clockclock.movement_done_event.clear()
+            await self.clockclock.movement_done_event.wait()
 
         for clk_index in range(24):
             self.hour_steppers[clk_index].move_to(new_positions_h[clk_index], 0)

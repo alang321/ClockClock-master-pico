@@ -22,12 +22,12 @@ class OneButton:
       self._pin = Pin(pinNr, Pin.IN, Pin.PULL_UP if activeLow else Pin.PULL_DOWN) 
 
     # number of millisec that have to pass by before a click is detected.
-    self._clickTicks = 200
+    self._clickTicks = 100
 
     # number of millisec that have to pass by before a long button press is detected.
     self._pressTicks = 1000
 
-    self._debounceTicks = 50 # number of ticks for debounce times.
+    self._debounceTicks = 10 # number of ticks for debounce times.
 
     # starting with state 0: waiting for button to be pressed
     self._state = 0
