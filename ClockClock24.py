@@ -25,12 +25,12 @@ class ClockClock24:
     stepper_accel_analog = 50
     
     modes = {
-      "visual": 0,  # every timechange has choreographies and stuff
-      "shortest path": 1,  # move to new position with shortest path
-      "stealth": 2,
-      "analog": 3,  # every clock is a normal clock
-      "sleep": 4,  # move all steppers to 6 o clock (default) position and disable stepper drivers
-      "night mode": 5,
+      "night mode": 0,
+      "visual": 1,  # every timechange has choreographies and stuff
+      "shortest path": 2,  # move to new position with shortest path
+      "stealth": 3,
+      "analog": 4,  # every clock is a normal clock
+      "sleep": 5,  # move all steppers to 6 o clock (default) position and disable stepper drivers
       "settings": 6,
       }
     
@@ -65,12 +65,12 @@ class ClockClock24:
         
         self.digit_display = DigitDisplay(self)
 
-        self.mode_change_handlers = [self.__visual, self.__shortest_path, self.__stealth, self.__analog, self.__sleep, self.__night_mode, self.__settings]
-        self.time_change_handlers = [self.__visual_new_time,
+        self.mode_change_handlers = [self.__night_mode, self.__visual, self.__shortest_path, self.__stealth, self.__analog, self.__sleep, self.__settings]
+        self.time_change_handlers = [self.__night_mode_new_time,
+                                     self.__visual_new_time,
                                      self.__shortest_path_new_time,
                                      self.__stealth_new_time,
                                      self.__analog_new_time,
-                                     self.__no_new_time,
                                      self.__no_new_time,
                                      self.__settings_new_time]
         self.time_handler = None
@@ -133,6 +133,12 @@ class ClockClock24:
             print("Interrupt received")
         self.alarm_flag = True
 
+    def display_time(self, hour: int, minute: int):
+        if __debug__:
+            print("New time displayed:", hour, minute)
+
+        self.time_handler(hour, minute)
+
     def cancel_tasks(self):
         if self.async_display_task != None:
             self.async_display_task.cancel()
@@ -146,52 +152,6 @@ class ClockClock24:
     def cancel_mode_tasks(self):
         if self.async_mode_change_task != None:
             self.async_mode_change_task.cancel()
-
-    def display_digit(self, field: int, number: int, direction=0, extra_revs=0):
-        self.cancel_tasks()
-        self.digit_display.display_digit(field, number, direction, extra_revs)
-    
-    def display_time(self, hour: int, minute: int):
-        if __debug__:
-            print("New time displayed:", hour, minute)
-        
-        if self.night_on:
-            start_time_min = self.night_start[0] * 60 + self.night_start[1]
-            end_time_min = self.night_end[0] * 60 + self.night_end[1]
-            curr_time_min = hour * 60 + minute
-            
-            is_night = False
-            if start_time_min < end_time_min:
-                is_night = (start_time_min <= curr_time_min <= end_time_min)
-            else:
-                is_night = (start_time_min <= curr_time_min or curr_time_min <= end_time_min)
-            
-            if is_night:
-                if __debug__:
-                    print("its night")
-                if self.__current_mode_night != self.night_mode:
-                    self.mode_change_handlers[self.day_mode](False)
-                    self.__current_mode_night = self.night_mode
-                    self.mode_change_handlers[self.night_mode](True)
-            else:
-                if __debug__:
-                    print("its day")
-                if self.__current_mode_night != self.day_mode:
-                    self.mode_change_handlers[self.night_mode](False)
-                    self.__current_mode_night = self.day_mode
-                    self.mode_change_handlers[self.day_mode](True)
-                   
-        self.time_handler(hour, minute)
-        
-    def swap(self, index: int):
-        minute_pos = self.minute_steppers[index].current_target_pos
-        hour_pos = self.hour_steppers[index].current_target_pos
-        
-        if minute_pos == -1 or hour_pos == -1:
-            return
-        
-        self.minute_steppers[index].move_to(hour_pos, 0)
-        self.hour_steppers[index].move_to(minute_pos, 0)
 
 #region mode change
 
@@ -284,6 +244,37 @@ class ClockClock24:
 #endregion
 
 #region  new time handlers
+
+    def __night_mode_new_time(self, hour: int, minute: int):
+        start_time_min = self.night_start[0] * 60 + self.night_start[1]
+        end_time_min = self.night_end[0] * 60 + self.night_end[1]
+        curr_time_min = hour * 60 + minute
+
+        if start_time_min < end_time_min:
+            is_night = (start_time_min <= curr_time_min <= end_time_min)
+        else:
+            is_night = (start_time_min <= curr_time_min or curr_time_min <= end_time_min)
+
+        if is_night:
+            if __debug__:
+                print("its night")
+            if self.__current_mode_night != self.night_mode:
+                self.mode_change_handlers[self.day_mode](False)
+                self.__current_mode_night = self.night_mode
+                self.mode_change_handlers[self.night_mode](True)
+                self.time_handler = self.time_change_handlers[ClockClock24.modes["night mode"]]
+
+            self.time_change_handlers[self.night_mode](hour, minute)
+        else:
+            if __debug__:
+                print("its day")
+            if self.__current_mode_night != self.day_mode:
+                self.mode_change_handlers[self.night_mode](False)
+                self.__current_mode_night = self.day_mode
+                self.mode_change_handlers[self.day_mode](True)
+                self.time_handler = self.time_change_handlers[ClockClock24.modes["night mode"]]
+
+            self.time_change_handlers[self.day_mode](hour, minute)
 
     def __stealth_new_time(self, hour: int, minute: int):
         self.cancel_display_tasks()

@@ -2,7 +2,7 @@ import machine
 import urtc
 
 class DS3231_timekeeper:
-    def __init__(self, new_minute_handler, alarm_pin: int, i2c_bus: machine.I2C, second = 0, enable_minute_alarm = True):
+    def __init__(self, new_minute_handler, alarm_pin: int, i2c_bus: machine.I2C, second=0, enable_minute_alarm=True):
         self.alarm_pin = alarm_pin
         self.second = second
         self.new_minute_handler = new_minute_handler
@@ -22,6 +22,9 @@ class DS3231_timekeeper:
  
     def get_datetime(self):
         return self.rtc.datetime()
+
+    def set_datetime(self, datetime):
+        self.rtc.datetime(datetime)
  
     def get_hour_minute(self):
         current_time = self.get_datetime()
@@ -35,9 +38,6 @@ class DS3231_timekeeper:
         #second 1 so alarm is not triggered, since this is inconsistent somehow
         self.set_datetime(urtc.datetime_tuple(year=2000, month=1, day=21, weekday=5, hour=hour, minute=minute, second=1, millisecond=0)) 
     
-    def set_datetime(self, datetime):
-        self.rtc.datetime(datetime)
-        
     def alarm_handler(self, pin):
         self.rtc.alarm(False)
         if self.enable_minute_alarm:

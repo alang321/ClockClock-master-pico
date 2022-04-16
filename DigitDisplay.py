@@ -593,8 +593,10 @@ class DigitDisplay:
                 self.hour_steppers[clk_index].move_to(end_pos, 1)
                 self.minute_steppers[clk_index].move_to(end_pos, -1)
 
-            self.clockclock.movement_done_event.clear()
-            await self.clockclock.movement_done_event.wait()
+            await asyncio.sleep(5)
+
+        self.clockclock.movement_done_event.clear()
+        await self.clockclock.movement_done_event.wait()
 
         for clk_index in range(24):
             self.hour_steppers[clk_index].move_to(new_positions_h[clk_index], 0)
