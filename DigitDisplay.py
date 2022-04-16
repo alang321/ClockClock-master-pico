@@ -67,6 +67,7 @@ class DigitDisplay:
       "field lines":  7, # visualize electric vector field of 2 point charges
       "equipotential": 8, # visualises equipotential line directions of 2 point charges
       "speedy clock": 9, # move minute and hour hand at different speeds to move somewhat like a clock althoug hour hand doesnt move as slow
+      "random": 10 # all clocks move to unique radnom position, once all clocks reach the move to correct one with shortest path
       }
     
     def __init__(self, clockclock):
@@ -93,7 +94,8 @@ class DigitDisplay:
             self.new_pose_opposites,
             self.new_pose_field_lines,
             self.new_pose_equipotential,
-            self.new_pose_speedy_clock
+            self.new_pose_speedy_clock,
+            self.new_pose_random
           ]
         
         self.digits_pointer_pos_abs = [[[int(frac * self.steps_full_rev) for frac in hour_minute] for hour_minute in number] for number in DigitDisplay.digits_pointer_pos_frac]
@@ -533,4 +535,30 @@ class DigitDisplay:
             await self.clockclock.movement_done_event.wait()
         finally:
             self.clockclock.set_speed_all(self.clockclock.current_speed)
-            
+
+    async def new_pose_random(self, new_positions_h, new_positions_m):
+        """all clocks move to unique radnom position, once all clocks reach the move to correct one with shortest path
+
+        Parameters
+        ----------
+        new_positions_h : List[int]
+            the positions to display for hour steppers, should int arrays of length 24
+        new_positions_m : List[int]
+            the positions to display for hour steppers, should int arrays of length 24
+        extra_revs : int
+            optional parameter for extra revs
+        """
+        for clk_index in range(24):
+            direction = random.choice([-1, 1])
+            position = random.randrange(self.steps_full_rev)
+            self.hour_steppers[clk_index].move_to(position, direction)
+            direction = random.choice([-1, 1])
+            position = random.randrange(self.steps_full_rev)
+            self.minute_steppers[clk_index].move_to(position, direction)
+
+        self.clockclock.movement_done_event.clear()
+        await self.clockclock.movement_done_event.wait()
+
+        for clk_index in range(24):
+            self.hour_steppers[clk_index].move_to(new_positions_h[clk_index], 0)
+            self.minute_steppers[clk_index].move_to(new_positions_m[clk_index], 0)

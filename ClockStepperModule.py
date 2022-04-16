@@ -48,7 +48,7 @@ class ClockModule: # module for 1 of the 6 pcbs in the clock
         
         self.i2c_write(buffer)
     
-    def move_to_module(self, position: int, direction: int):
+    def move_to_module(self, position: int, direction: int): # dir: 0 - shortes path, 1 - cw, -1 - ccw
         buffer = pack("<BHbb", self.cmd_id["moveTo"], position, direction, self.sub_stepper_id) #cmd_id uint8, position uint16, dir int8, stepper_id int8             
         
         self.i2c_write(buffer)

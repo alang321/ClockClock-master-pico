@@ -57,7 +57,7 @@ def cycle_field(pin):
             if __debug__:
                 print("Changed Field:", current_field)
 
-            distance = int(clockclock.steps_full_rev * 0.2)
+            distance = int(clockclock.steps_full_rev * 0.1)
             for clk_index in clockclock.digit_display.digit_display_indices[current_field]:
                 clockclock.hour_steppers[clk_index].wiggle(distance, 1)
                 clockclock.minute_steppers[clk_index].wiggle(distance, -1)

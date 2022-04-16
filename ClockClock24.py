@@ -45,7 +45,8 @@ class ClockClock24:
                                      DigitDisplay.animations["opposites"],
                                      DigitDisplay.animations["field lines"],
                                      DigitDisplay.animations["equipotential"],
-                                     DigitDisplay.animations["speedy clock"]]
+                                     DigitDisplay.animations["speedy clock"],
+                                     DigitDisplay.animations["random"]]
         self.random_shuffle(self.visual_animation_ids)
         self.animation_index = 0
 
@@ -332,7 +333,7 @@ class ClockClock24:
                 if __debug__:
                     print("nightconf next digit:", self.__nightconf_current_digit)
 
-                distance = int(self.steps_full_rev * 0.2)
+                distance = int(self.steps_full_rev * 0.1)
                 for clk_index in self.digit_display.digit_display_indices[self.__nightconf_current_digit]:
                     self.hour_steppers[clk_index].wiggle(distance, 1)
                     self.minute_steppers[clk_index].wiggle(distance, -1)
