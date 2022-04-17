@@ -1,6 +1,4 @@
-from ClockStepperModule import ClockStepper
 import math
-import time
 import random
 import uasyncio as asyncio
 
@@ -59,18 +57,19 @@ class DigitDisplay:
     
     #animations modes for position transitions
     animations = {
-      "shortest path": 0, # simply taking shortest path to new position
-      "stealth": 1, # minimal movements to minimize noise
-      "extra revs": 2, # move with extra revolutions to target
-      "straight wave": 3, # align steppers in straight line at 45 degrees and start moving delayed from left to right
-      "opposing pointers": 4, # align all pointers at bottom and start moving minute and hours opposite direction with extra rotations to target
-      "focus": 5, # move all pointer to point to center and move with extra rotation to target, maybe change speed depending on how far out
-      "opposites": 6, # simply rotate pointers in opposing directions to target
-      "field lines":  7, # visualize electric vector field of 2 point charges
-      "equipotential": 8, # visualises equipotential line directions of 2 point charges
-      "speedy clock": 9, # move minute and hour hand at different speeds to move somewhat like a clock althoug hour hand doesnt move as slow
-      "random": 10, # all clocks move to unique radnom position, once all clocks reach the move to correct one with shortest path
-      "handoff": 11 # all move pointing down, then bottom row starts opposing pointer thing, when done second row starts ("handoff") and so on
+      "shortest path": 0,  # simply taking shortest path to new position
+      "stealth": 1,  # minimal movements to minimize noise
+      "extra revs": 2,  # move with extra revolutions to target
+      "straight wave": 3,  # align steppers in straight line at 45 degrees and start moving delayed from left to right
+      "opposing pointers": 4,  # align all pointers at bottom and start moving minute and hours opposite direction with extra rotations to target
+      "focus": 5,  # move all pointer to point to center and move with extra rotation to target, maybe change speed depending on how far out
+      "opposites": 6,  # simply rotate pointers in opposing directions to target
+      "field lines":  7,  # visualize electric vector field of 2 point charges
+      "equipotential": 8,  # visualises equipotential line directions of 2 point charges
+      "speedy clock": 9,  # move minute and hour hand at different speeds to move somewhat like a clock althoug hour hand doesnt move as slow
+      "random": 10,  # all clocks move to unique radnom position, once all clocks reach the move to correct one with shortest path
+      "handoff": 11,   # all move pointing down, then bottom row starts opposing pointer thing, when done second row starts ("handoff") and so on
+      "opposing wave": 12  # like opposing pointers but starts from left with delay between columns
       }
     
     def __init__(self, clockclock):
@@ -99,7 +98,8 @@ class DigitDisplay:
             self.new_pose_equipotential,
             self.new_pose_speedy_clock,
             self.new_pose_random,
-            self.new_pose_handoff
+            self.new_pose_handoff,
+            self.new_pose_opposing_wave
           ]
         
         self.digits_pointer_pos_abs = [[[int(frac * self.steps_full_rev) for frac in hour_minute] for hour_minute in number] for number in DigitDisplay.digits_pointer_pos_frac]
@@ -256,6 +256,13 @@ class DigitDisplay:
         extra_revs = 2
         direction = random.choice([-1, 1])
         start_ang = random.choice([0.875, 0.625])
+
+        direction = random.randint(0, 1)
+        if direction == 0:
+            column_indices = self.column_indices
+        else:
+            column_indices = reversed(self.column_indices)
+
         start_pos_m = int(self.steps_full_rev * start_ang)
         start_pos_h = int(self.steps_full_rev * (start_ang - 0.5))
         
@@ -266,7 +273,7 @@ class DigitDisplay:
         self.clockclock.movement_done_event.clear()
         await self.clockclock.movement_done_event.wait()
 
-        for col_index, col in enumerate(DigitDisplay.column_indices):
+        for col_index, col in enumerate(column_indices):
             if col_index != 0:
                 await asyncio.sleep_ms(ms_delay)
             for clk_index in col:
@@ -593,7 +600,7 @@ class DigitDisplay:
                 self.hour_steppers[clk_index].move_to(end_pos, 1)
                 self.minute_steppers[clk_index].move_to(end_pos, -1)
 
-            await asyncio.sleep(5)
+            await asyncio.sleep(4.65)
 
         self.clockclock.movement_done_event.clear()
         await self.clockclock.movement_done_event.wait()
@@ -601,3 +608,36 @@ class DigitDisplay:
         for clk_index in range(24):
             self.hour_steppers[clk_index].move_to(new_positions_h[clk_index], 0)
             self.minute_steppers[clk_index].move_to(new_positions_m[clk_index], 0)
+
+    async def new_pose_opposing_wave(self, new_positions_h, new_positions_m):
+        """like opposing pointers but starts from left with delay between columns
+
+        Parameters
+        ----------
+        new_positions_h : List[int]
+            the positions to display for hour steppers, should int arrays of length 24
+        new_positions_m : List[int]
+            the positions to display for hour steppers, should int arrays of length 24
+        """
+        direction = random.randint(0, 1)
+        ms_delay = 450
+        extra_revs = 1
+
+        if direction == 0:
+            start_pos = int(self.steps_full_rev * 0.75)
+            column_indices = self.column_indices
+        else:
+            start_pos = int(self.steps_full_rev * 0.25)
+            column_indices = reversed(self.column_indices)
+
+        self.clockclock.move_to_all(start_pos, 0)
+
+        self.clockclock.movement_done_event.clear()
+        await self.clockclock.movement_done_event.wait()
+
+        for index, col in enumerate(column_indices):
+            if index != 0:
+                await asyncio.sleep_ms(ms_delay)
+            for clk_index in col:
+                self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], 1, extra_revs)
+                self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], -1, extra_revs)

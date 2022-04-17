@@ -49,7 +49,7 @@ class ClockClock24:
                                      DigitDisplay.animations["equipotential"],
                                      DigitDisplay.animations["speedy clock"],
                                      DigitDisplay.animations["random"],
-                                     DigitDisplay.animations["handoff"]]
+                                     DigitDisplay.animations["opposing wave"]]
         self.random_shuffle(self.visual_animation_ids)
         self.animation_index = 0
 
