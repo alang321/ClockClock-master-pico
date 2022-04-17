@@ -219,7 +219,7 @@ class DigitDisplay:
                 m.move_to(a_pos, 0)
                 h.move_to(b_pos, 0)
     
-    async def new_pose_extra_revs(self, new_positions_h, new_positions_m, direction = 0, extra_revs = 2):
+    async def new_pose_extra_revs(self, new_positions_h, new_positions_m, direction = 0, extra_revs = 1):
         """Display a series of new positions on the clock, move stepper the shortest path to its destianation
         
         Parameters
@@ -253,7 +253,7 @@ class DigitDisplay:
             the positions to display for hour steppers, should int arrays of length 24
         """
         ms_delay = 350 # movement delay between individual columns
-        extra_revs = 2
+        extra_revs = 1
         direction = random.choice([-1, 1])
         start_ang = random.choice([0.875, 0.625])
 
@@ -291,7 +291,7 @@ class DigitDisplay:
         new_positions_m : List[int]
             the positions to display for hour steppers, should int arrays of length 24
         """
-        extra_revs = 2
+        extra_revs = 1
         start_ang = random.choice([0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875])
         start_pos = int(self.steps_full_rev * start_ang)
         
@@ -315,7 +315,7 @@ class DigitDisplay:
         new_positions_m : List[int]
             the positions to display for hour steppers, should int arrays of length 24
         """
-        extra_revs = 2
+        extra_revs = 1
         direction = random.choice([1, -1])
         
         # up is poitive x axis
@@ -376,7 +376,7 @@ class DigitDisplay:
                 self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], direction, extra_revs)
                 self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], direction, extra_revs)
     
-    async def new_pose_opposites(self, new_positions_h, new_positions_m, extra_revs=2):
+    async def new_pose_opposites(self, new_positions_h, new_positions_m, extra_revs=1):
         """Display a series of new positions on the clock, simply rotate minute and hour pointers in opposing directions to target
         
         Parameters
@@ -403,7 +403,7 @@ class DigitDisplay:
         new_positions_m : List[int]
             the positions to display for hour steppers, should int arrays of length 24
         """
-        extra_revs = 2
+        extra_revs = 1
         direction = random.choice([-1, 1])
         
         # up is poitive x axis
@@ -467,7 +467,7 @@ class DigitDisplay:
         new_positions_m : List[int]
             the positions to display for hour steppers, should int arrays of length 24
         """
-        extra_revs = 2
+        extra_revs = 1
         direction = random.choice([-1, 1])
         
         # up is poitive x axis
@@ -542,7 +542,7 @@ class DigitDisplay:
             
         for clk_index in range(24):
             self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], 1, 1)
-            self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], 1, 3)
+            self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], 1, 2)
         
         self.clockclock.movement_done_event.clear()
         try:
