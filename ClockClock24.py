@@ -295,7 +295,7 @@ class ClockClock24:
         digits = [hour//10, hour%10, minute//10, minute%10]
         
         if __debug__:
-            print("animation id:", self.visual_animation_ids[self.animation_index])
+            print("animation id:", self.visual_animation_ids[self.animation_index],", current queue:", self.visual_animation_ids)
             
         self.digit_display.display_digits(digits, self.visual_animation_ids[self.animation_index])
         
