@@ -219,7 +219,7 @@ class DigitDisplay:
                 m.move_to(a_pos, 0)
                 h.move_to(b_pos, 0)
     
-    async def new_pose_extra_revs(self, new_positions_h, new_positions_m, direction = 0, extra_revs = 1):
+    async def new_pose_extra_revs(self, new_positions_h, new_positions_m, direction=0, extra_revs=1):
         """Display a series of new positions on the clock, move stepper the shortest path to its destianation
         
         Parameters
