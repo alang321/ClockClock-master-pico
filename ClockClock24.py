@@ -351,40 +351,44 @@ class ClockClock24:
     def settings_incr_decr(self, direction):
         if not self.input_lock:
             if __debug__:
-                print("settings incr", direction)
+                print("settings time increment direction ", direction)
                 
             self.__persistent_data_changed = True
 
-            if self.__settings_current_page == 0:
+            if self.__settings_current_page == 0: # change time page
                 time_change_val = [[10, 0], [1, 0], [0, 10], [0, 1]]
-                rtc.add_to_hour_minute(time_change_val[current_field][0] * direction, time_change_val[current_field][1] * direction)
-                time = self.__settings_incr_decr_time(self.night_start[0], self.night_start[1],
+                curr_hour, curr_min = self.rtc.get_hour_minute()
+                time = self.__settings_incr_decr_time(curr_hour, curr_min,
                                                       time_change_val[self.__settings_current_digit][0] * direction,
                                                       time_change_val[self.__settings_current_digit][1] * direction)
 
-                self.rtc.set_hour_minute(time[0], time[1])
-
                 if __debug__:
-                    print("changed time:", time)
-            elif self.__settings_current_page == 1:
+                    print("incrementing by: hour:", time_change_val[self.__settings_current_digit][0] * direction, "minutes:", time_change_val[self.__settings_current_digit][1] * direction)
+                    print("old time:", self.rtc.get_hour_minute())
+                    
+                self.rtc.set_hour_minute(time[0], time[1])
+                
+                if __debug__:
+                    print("new time:", self.rtc.get_hour_minute())
+            elif self.__settings_current_page == 1: # change night start time page
                 time_change_val = [[10, 0], [1, 0], [0, 10], [0, 1]]
                 self.night_start = self.__settings_incr_decr_time(self.night_start[0], self.night_start[1], time_change_val[self.__settings_current_digit][0] * direction, time_change_val[self.__settings_current_digit][1] * direction)
                 
                 if __debug__:
                     print("new start time:", self.night_start)
-            elif self.__settings_current_page == 2:
+            elif self.__settings_current_page == 2: # change night end time page
                 time_change_val = [[10, 0], [1, 0], [0, 10], [0, 1]]
                 self.night_end = self.__settings_incr_decr_time(self.night_end[0], self.night_end[1], time_change_val[self.__settings_current_digit][0] * direction, time_change_val[self.__settings_current_digit][1] * direction)
                 
                 if __debug__:
                     print("new end time:", self.night_end)
-            elif self.__settings_current_page == 3:
+            elif self.__settings_current_page == 3: # set mode during day
                 index = self.__nightmode_allowed_modes.index(self.day_mode)
                 self.day_mode = self.__nightmode_allowed_modes[(index + direction) % len(self.__nightmode_allowed_modes)]
                 
                 if __debug__:
                     print("new day mode:", self.day_mode)
-            else:
+            else: # set mode during night
                 index = self.__nightmode_allowed_modes.index(self.night_mode)
                 self.night_mode = self.__nightmode_allowed_modes[(index + direction) % len(self.__nightmode_allowed_modes)]
                 
