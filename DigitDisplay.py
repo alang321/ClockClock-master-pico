@@ -256,10 +256,10 @@ class DigitDisplay:
         new_positions_m : List[int]
             the positions to display for hour steppers, should int arrays of length 24
         """
-        ms_delay = 350 # movement delay between individual columns
+        ms_delay = 400 # movement delay between individual columns
         extra_revs = self.animation_turns
         direction = random.choice([-1, 1])
-        start_ang = random.choice([0.875, 0.625, 0.25])
+        start_ang = random.choice([0.875, 0.625, 0.75])
 
         direction = random.randint(0, 1)
         if direction == 0:

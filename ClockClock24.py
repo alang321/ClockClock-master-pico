@@ -13,8 +13,8 @@ class ClockClock24:
     stepper_accel_fast = 450
     
     #normal speed used in most modes
-    stepper_speed_default = 585
-    stepper_accel_default = 200
+    stepper_speed_default = 600
+    stepper_accel_default = 220
     
     #used in stealth mode
     stepper_speed_stealth = 150
