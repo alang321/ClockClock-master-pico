@@ -667,7 +667,10 @@ class DigitDisplay:
         
         # coordinate system: origin at center of clockclock, y+ up x+ right
         # center of clock clock
-        x_cc, y_cc = 0, 0
+        
+        point = random.choice([[0, 0], [0, 20], [40, 20]]) 
+        x_cc = point[0]
+        y_cc = point[1]
         
         # with abc and c the hypotenuse, with x_c center of a clock
         # a - from center or clock to center of clock pointer - 2cm
@@ -694,17 +697,17 @@ class DigitDisplay:
             # angle between vertical and a
             kap = math.pi - lam - alph
 
-            pos_1 = (4320 * kap) / (2 * math.pi) * math.copysign(1, x_dist)
+            pos_1 = int(-(self.steps_full_rev * kap) / (2 * math.pi) * math.copysign(1, x_dist)) % self.steps_full_rev
 
             # since the angle of the pointers with respect to c should be equal
-            pos_2 = (4320 * (kap + 2 * alph)) / (2 * math.pi) * math.copysign(1, x_dist)
+            pos_2 = int(-(self.steps_full_rev * (kap + 2 * alph)) / (2 * math.pi) * math.copysign(1, x_dist)) % self.steps_full_rev
             
             if y_dist > 0:
-                self.hour_steppers[clk_index].move_to(pos_1, 0)
-                self.minute_steppers[clk_index].move_to(pos_2, 0)
-            else:
                 self.hour_steppers[clk_index].move_to(pos_2, 0)
                 self.minute_steppers[clk_index].move_to(pos_1, 0)
+            else:
+                self.hour_steppers[clk_index].move_to(pos_1, 0)
+                self.minute_steppers[clk_index].move_to(pos_2, 0)
         
         #wait for move to be done
         self.clockclock.movement_done_event.clear()
@@ -720,17 +723,17 @@ class DigitDisplay:
             
             if x_dist < 0:
                 if y_dist > 0:
-                    self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], 1, extra_revs)
-                    self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], -1, extra_revs)
-                else:                
                     self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], -1, extra_revs)
                     self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], 1, extra_revs)
+                else:                
+                    self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], 1, extra_revs)
+                    self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], -1, extra_revs)
             else:
                 if y_dist > 0:
-                    self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], -1, extra_revs)
-                    self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], 1, extra_revs)
-                else:                
                     self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], 1, extra_revs)
                     self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], -1, extra_revs)
+                else:                
+                    self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], -1, extra_revs)
+                    self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], 1, extra_revs)
                 
 
