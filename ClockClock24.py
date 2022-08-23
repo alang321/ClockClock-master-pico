@@ -45,11 +45,11 @@ class ClockClock24:
                                      DigitDisplay.animations["opposing pointers"],
                                      DigitDisplay.animations["focus"],
                                      DigitDisplay.animations["opposites"],
-                                     DigitDisplay.animations["field lines"],
                                      DigitDisplay.animations["equipotential"],
                                      DigitDisplay.animations["speedy clock"],
                                      DigitDisplay.animations["random"],
-                                     DigitDisplay.animations["opposing wave"]]
+                                     DigitDisplay.animations["opposing wave"],
+                                     DigitDisplay.animations["circle"]]
         self.random_shuffle(self.visual_animation_ids)
         self.animation_index = 0
 
@@ -229,6 +229,7 @@ class ClockClock24:
             self.set_speed_all(ClockClock24.stepper_speed_fast)
             self.set_accel_all(ClockClock24.stepper_accel_fast)
             self.__settings_current_page = 0
+            self.__settings_current_digit = 3
             self.__persistent_data_changed = False
             self.__settings_update_display()
         else:
