@@ -50,7 +50,8 @@ class ClockClock24:
                                      DigitDisplay.animations["random"],
                                      DigitDisplay.animations["opposing wave"],
                                      DigitDisplay.animations["circle"],
-                                     DigitDisplay.animations["smaller bigger"]]
+                                     DigitDisplay.animations["smaller bigger"],
+                                     DigitDisplay.animations["small circles"]]
         self.random_shuffle(self.visual_animation_ids)
         self.animation_index = 0
 

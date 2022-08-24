@@ -71,7 +71,8 @@ class DigitDisplay:
       "handoff": 11,   # all move pointing down, then bottom row starts opposing pointer thing, when done second row starts ("handoff") and so on
       "opposing wave": 12,  # like opposing pointers but starts from left with delay between columns
       "circle": 13,# a big circle that collapses to the center
-      "smaller bigger": 14 # idk
+      "smaller bigger": 14, # idk
+      "small circles": 14, # small circles made of 4 clocks each
       }
     
     def __init__(self, clockclock):
@@ -103,7 +104,8 @@ class DigitDisplay:
             self.new_pose_handoff,
             self.new_pose_opposing_wave,
             self.new_pose_circle,
-            self.new_pose_smaller_bigger
+            self.new_pose_smaller_bigger,
+            self.new_pose_small_circles
           ]
         
         self.digits_pointer_pos_abs = [[[int(frac * self.steps_full_rev) for frac in hour_minute] for hour_minute in number] for number in DigitDisplay.digits_pointer_pos_frac]
@@ -473,6 +475,7 @@ class DigitDisplay:
             the positions to display for hour steppers, should int arrays of length 24
         """
         extra_revs = 1
+        ms_delay = 400
         direction = random.choice([-1, 1])
         
         # up is poitive x axis
@@ -523,10 +526,13 @@ class DigitDisplay:
         #wait for move to be done
         self.clockclock.movement_done_event.clear()
         await self.clockclock.movement_done_event.wait()
-
-        for clk_index in range(24):
-            self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], direction, extra_revs)
-            self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], direction, extra_revs)
+        
+        for index, col in enumerate(self.column_indices):
+            if index != 0:
+                await asyncio.sleep_ms(ms_delay)
+            for clk_index in col:
+                self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], direction, extra_revs)
+                self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], direction, extra_revs)
     
     async def new_pose_speedy_clock(self, new_positions_h, new_positions_m):
         """move minute and hour hand at different speeds to move somewhat like a clock althoug hour hand doesnt move as slow
@@ -567,6 +573,8 @@ class DigitDisplay:
         extra_revs : int
             optional parameter for extra revs
         """
+        ms_delay = 400
+        
         for clk_index in range(24):
             direction = random.choice([-1, 1])
             position = random.randrange(self.steps_full_rev)
@@ -577,10 +585,13 @@ class DigitDisplay:
 
         self.clockclock.movement_done_event.clear()
         await self.clockclock.movement_done_event.wait()
-
-        for clk_index in range(24):
-            self.hour_steppers[clk_index].move_to(new_positions_h[clk_index], 0)
-            self.minute_steppers[clk_index].move_to(new_positions_m[clk_index], 0)
+        
+        for col_index, col in enumerate(self.column_indices):
+            if col_index != 0:
+                await asyncio.sleep_ms(ms_delay)
+            for clk_index in col:
+                self.hour_steppers[clk_index].move_to(new_positions_h[clk_index], 0)
+                self.minute_steppers[clk_index].move_to(new_positions_m[clk_index], 0)
 
     async def new_pose_handoff(self, new_positions_h, new_positions_m):
         """all move pointing down, then bottom row starts opposing pointer thing, when done second row starts ("handoff") and so on
@@ -738,39 +749,78 @@ class DigitDisplay:
                     
                         
     async def new_pose_smaller_bigger(self, new_positions_h, new_positions_m):
-            """idk how to describe
+        """idk how to describe
+        
+        Parameters
+        ----------
+        new_positions_h : List[int]
+            the positions to display for hour steppers, should int arrays of length 24
+        new_positions_m : List[int]
+            the positions to display for hour steppers, should int arrays of length 24
+        """
+        extra_revs = 1
+        
+        for index, clk_lst in enumerate(self.column_indices):
+            if (index % 2) == 0:
+                h_pos = int(0.125 * self.steps_full_rev)
+                m_pos = int(0.375 * self.steps_full_rev)
+            else:
+                h_pos = int(0.625 * self.steps_full_rev)
+                m_pos = int(0.875 * self.steps_full_rev)
             
-            Parameters
-            ----------
-            new_positions_h : List[int]
-                the positions to display for hour steppers, should int arrays of length 24
-            new_positions_m : List[int]
-                the positions to display for hour steppers, should int arrays of length 24
-            """
-            extra_revs = 1
-            
-            for index, clk_lst in enumerate(self.column_indices):
-                if (index % 2) == 0:
-                    h_pos = 0.125
-                    m_pos = 0.375
-                else:
-                    h_pos = 0.625
-                    m_pos = 0.875
+            for clk_index in clk_lst:    
+                self.hour_steppers[clk_index].move_to(h_pos, 0)
+                self.minute_steppers[clk_index].move_to(m_pos, 0)
+        
+        self.clockclock.movement_done_event.clear()
+        await self.clockclock.movement_done_event.wait()
+        
+        
+        for index, clk_lst in enumerate(self.column_indices):
+            if (index % 2) == 0:
+                direction = 1
+            else:
+                direction = -1
                 
-                for clk_index in clk_lst:    
-                    self.hour_steppers[clk_index].move_to(h_pos, 0)
-                    self.minute_steppers[clk_index].move_to(m_pos, 0)
-            
-            self.clockclock.movement_done_event.clear()
-            await self.clockclock.movement_done_event.wait()
-            
-            
-            for index, clk_lst in enumerate(self.column_indices):
-                if (index % 2) == 0:
-                    direction = 1
-                else:
-                    direction = -1
+            for clk_index in clk_lst:
+                self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], direction, extra_revs)
+                self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], direction, extra_revs)
                     
-                for clk_index in clk_lst:
-                    self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], direction, extra_revs)
-                    self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], direction, extra_revs)
+    async def new_pose_small_circles(self, new_positions_h, new_positions_m):
+        """small circles made of 4 clocks each
+        
+        Parameters
+        ----------
+        new_positions_h : List[int]
+            the positions to display for hour steppers, should int arrays of length 24
+        new_positions_m : List[int]
+            the positions to display for hour steppers, should int arrays of length 24
+        """
+        extra_revs = 1
+        
+        # top and botom row
+        for row in range(2):
+            for col in range(8):
+                clk_index = row * 16 + col
+                
+                pos = int((0.25 * (col % 2) + 0.375) * self.steps_full_rev)
+                
+                self.hour_steppers[clk_index].move_to(pos, 0)
+                self.minute_steppers[clk_index].move_to(pos, 0)
+        
+        # middle row
+        for col in range(8):
+            clk_index = 8 + col
+                
+            pos = int((0.75 * (col % 2) + 0.125) * self.steps_full_rev)
+                
+            self.hour_steppers[clk_index].move_to(pos, 0)
+            self.minute_steppers[clk_index].move_to(pos, 0)
+        
+        self.clockclock.movement_done_event.clear()
+        await self.clockclock.movement_done_event.wait()
+
+        for clk_index in range(24):
+            self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], 1, extra_revs)
+            self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], -1, extra_revs)
+                
