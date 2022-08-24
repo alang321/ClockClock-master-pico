@@ -261,8 +261,8 @@ class DigitDisplay:
         direction = random.choice([-1, 1])
         start_ang = random.choice([0.875, 0.625, 0.75])
 
-        direction = random.randint(0, 1)
-        if direction == 0:
+        wave_direction = random.randint(0, 1)
+        if wave_direction == 0:
             column_indices = self.column_indices
         else:
             column_indices = reversed(self.column_indices)
