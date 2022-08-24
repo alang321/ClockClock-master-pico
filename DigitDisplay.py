@@ -70,7 +70,8 @@ class DigitDisplay:
       "random": 10,  # all clocks move to unique radnom position, once all clocks reach the move to correct one with shortest path
       "handoff": 11,   # all move pointing down, then bottom row starts opposing pointer thing, when done second row starts ("handoff") and so on
       "opposing wave": 12,  # like opposing pointers but starts from left with delay between columns
-      "circle": 13 # a big circle that collapses to the center
+      "circle": 13,# a big circle that collapses to the center
+      "smaller bigger": 14 # idk
       }
     
     def __init__(self, clockclock):
@@ -101,10 +102,9 @@ class DigitDisplay:
             self.new_pose_random,
             self.new_pose_handoff,
             self.new_pose_opposing_wave,
-            self.new_pose_circle
+            self.new_pose_circle,
+            self.new_pose_smaller_bigger
           ]
-        
-        self.animation_turns = 2 # number of rotations used in a lot of animations
         
         self.digits_pointer_pos_abs = [[[int(frac * self.steps_full_rev) for frac in hour_minute] for hour_minute in number] for number in DigitDisplay.digits_pointer_pos_frac]
     
@@ -153,7 +153,7 @@ class DigitDisplay:
         
         Parameters
         ----------
-        digits : List[int]
+        digits : List[int] 
             the digits to display, should be length 4
         animation : int, optional
             index of animation to use, indices are in animations dict as static member in this class (default is 0, "shortest path")
@@ -170,7 +170,7 @@ class DigitDisplay:
             self.animation_handlers[animation_id](new_positions_h, new_positions_m))
 
     async def new_pose_shortest_path(self, new_positions_h, new_positions_m):
-        """Display a series of new positions on the clock, move stepper the shortest path to its destianation
+        """Display a series of new positions on the clock, move stepper the shortest path to its destination
         
         Parameters
         ----------
@@ -257,7 +257,7 @@ class DigitDisplay:
             the positions to display for hour steppers, should int arrays of length 24
         """
         ms_delay = 400 # movement delay between individual columns
-        extra_revs = self.animation_turns
+        extra_revs = 1
         direction = random.choice([-1, 1])
         start_ang = random.choice([0.875, 0.625, 0.75])
 
@@ -295,7 +295,7 @@ class DigitDisplay:
         new_positions_m : List[int]
             the positions to display for hour steppers, should int arrays of length 24
         """
-        extra_revs = self.animation_turns
+        extra_revs = 1
         start_ang = random.choice([0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875])
         start_pos = int(self.steps_full_rev * start_ang)
         
@@ -319,7 +319,7 @@ class DigitDisplay:
         new_positions_m : List[int]
             the positions to display for hour steppers, should int arrays of length 24
         """
-        extra_revs = self.animation_turns
+        extra_revs = 1
         direction = random.choice([1, -1])
         
         # up is poitive x axis
@@ -392,7 +392,7 @@ class DigitDisplay:
         extra_revs : int
             optional parameter for extra revs
         """
-        extra_revs = self.animation_turns
+        extra_revs = 2
         
         for clk_index in range(24):
             self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], 1, extra_revs)
@@ -408,7 +408,7 @@ class DigitDisplay:
         new_positions_m : List[int]
             the positions to display for hour steppers, should int arrays of length 24
         """
-        extra_revs = self.animation_turns
+        extra_revs = 1
         direction = random.choice([-1, 1])
         
         # up is poitive x axis
@@ -472,7 +472,7 @@ class DigitDisplay:
         new_positions_m : List[int]
             the positions to display for hour steppers, should int arrays of length 24
         """
-        extra_revs = self.animation_turns
+        extra_revs = 1
         direction = random.choice([-1, 1])
         
         # up is poitive x axis
@@ -657,7 +657,7 @@ class DigitDisplay:
         new_positions_m : List[int]
             the positions to display for hour steppers, should int arrays of length 24
         """
-        extra_revs = self.animation_turns
+        extra_revs = 1
         
         # this function is relatively computationally heavy and takes about 7ms to execute on a Pi Pico
         # could be implemented as precalculated list
@@ -735,5 +735,42 @@ class DigitDisplay:
                 else:                
                     self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], -1, extra_revs)
                     self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], 1, extra_revs)
+                    
+                        
+    async def new_pose_smaller_bigger(self, new_positions_h, new_positions_m):
+            """idk how to describe
+            
+            Parameters
+            ----------
+            new_positions_h : List[int]
+                the positions to display for hour steppers, should int arrays of length 24
+            new_positions_m : List[int]
+                the positions to display for hour steppers, should int arrays of length 24
+            """
+            extra_revs = 1
+            
+            for index, clk_lst in enumerate(self.column_indices):
+                if (index % 2) == 0:
+                    h_pos = 0.125
+                    m_pos = 0.375
+                else:
+                    h_pos = 0.625
+                    m_pos = 0.875
                 
-
+                for clk_index in clk_lst:    
+                    self.hour_steppers[clk_index].move_to(h_pos, 0)
+                    self.minute_steppers[clk_index].move_to(m_pos, 0)
+            
+            self.clockclock.movement_done_event.clear()
+            await self.clockclock.movement_done_event.wait()
+            
+            
+            for index, clk_lst in enumerate(self.column_indices):
+                if (index % 2) == 0:
+                    direction = 1
+                else:
+                    direction = -1
+                    
+                for clk_index in clk_lst:
+                    self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], direction, extra_revs)
+                    self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], direction, extra_revs)

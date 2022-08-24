@@ -13,8 +13,8 @@ class ClockClock24:
     stepper_accel_fast = 450
     
     #normal speed used in most modes
-    stepper_speed_default = 600
-    stepper_accel_default = 220
+    stepper_speed_default = 585
+    stepper_accel_default = 210
     
     #used in stealth mode
     stepper_speed_stealth = 135
@@ -49,7 +49,8 @@ class ClockClock24:
                                      DigitDisplay.animations["speedy clock"],
                                      DigitDisplay.animations["random"],
                                      DigitDisplay.animations["opposing wave"],
-                                     DigitDisplay.animations["circle"]]
+                                     DigitDisplay.animations["circle"],
+                                     DigitDisplay.animations["smaller bigger"]]
         self.random_shuffle(self.visual_animation_ids)
         self.animation_index = 0
 
