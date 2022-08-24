@@ -72,7 +72,7 @@ class DigitDisplay:
       "opposing wave": 12,  # like opposing pointers but starts from left with delay between columns
       "circle": 13,# a big circle that collapses to the center
       "smaller bigger": 14, # idk
-      "small circles": 14, # small circles made of 4 clocks each
+      "small circles": 15, # small circles made of 4 clocks each
       }
     
     def __init__(self, clockclock):
