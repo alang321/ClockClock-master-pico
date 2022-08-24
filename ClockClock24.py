@@ -17,8 +17,8 @@ class ClockClock24:
     stepper_accel_default = 220
     
     #used in stealth mode
-    stepper_speed_stealth = 150
-    stepper_accel_stealth = 50
+    stepper_speed_stealth = 135
+    stepper_accel_stealth = 45
     
     #used in analog mode
     stepper_speed_analog = 70
@@ -507,6 +507,10 @@ class ClockClock24:
     def move_to_extra_revs_all(self, position: int, direction: int, extra_revs: int):
         for module in self.clock_modules:
             module.move_to_extra_revs_module(position, direction, extra_revs)
+
+    def moveTo_min_steps_all(self): 
+        for module in self.clock_modules:
+            module.move_to_min_steps_module()
     
     def move_all(self, distance: int, direction: int):
         for module in self.clock_modules:
@@ -515,10 +519,6 @@ class ClockClock24:
     def stop_all(self):
         for module in self.clock_modules:
             module.stop_module()
-
-    def falling_pointer(self): 
-        for module in self.clock_modules:
-            module.falling_pointer_module()
 
     def is_running(self) -> bool: #returns True if stepper is running
         for module in self.clock_modules:
