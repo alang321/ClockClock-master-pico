@@ -104,8 +104,8 @@ class ClockClock24:
         self.__persistent_data_changed = False
         
         # settings
-        var_lst = [PersistentStorage.persistent_var("night start", [21, 0], lambda a : 0 <= a <= 23), # todo fix
-                   PersistentStorage.persistent_var("night end", [8, 0], lambda a : True if a in arr else False),
+        var_lst = [PersistentStorage.persistent_var("night start", [21, 0], lambda a : (0 <= a[0] <= 23 and 0 <= a[1] <= 59)), # todo fix
+                   PersistentStorage.persistent_var("night end", [8, 0], lambda a : (0 <= a[0] <= 23 and 0 <= a[1] <= 59)),
                    PersistentStorage.persistent_var("night mode", ClockClock24.modes["stealth"], lambda a : True if a in self.__nightmode_allowed_modes else False),
                    PersistentStorage.persistent_var("day mode", ClockClock24.modes["visual"], lambda a : True if a in self.__nightmode_allowed_modes else False),
                    PersistentStorage.persistent_var("one style", 0, lambda a : True if a in [0, 1] else False)]
@@ -253,8 +253,13 @@ class ClockClock24:
 #region  new time handlers
 
     def __night_mode_new_time(self, hour: int, minute: int):
-        start_time_min = self.night_start[0] * 60 + self.night_start[1]
-        end_time_min = self.night_end[0] * 60 + self.night_end[1]
+        night_start = self.persistent.get_var("night start")
+        night_end = self.persistent.get_var("night end")
+        night_mode = self.persistent.get_var("night mode")
+        day_mode = self.persistent.get_var("day mode")
+        
+        start_time_min = night_start[0] * 60 + night_start[1]
+        end_time_min = night_end[0] * 60 + night_end[1]
         curr_time_min = hour * 60 + minute
 
         if start_time_min < end_time_min:
@@ -265,23 +270,23 @@ class ClockClock24:
         if is_night:
             if __debug__:
                 print("its night")
-            if self.__current_mode_night != self.night_mode:
-                self.mode_change_handlers[self.day_mode](False)
-                self.__current_mode_night = self.night_mode
-                self.mode_change_handlers[self.night_mode](True)
+            if self.__current_mode_night != night_mode:
+                self.mode_change_handlers[day_mode](False)
+                self.__current_mode_night = night_mode
+                self.mode_change_handlers[night_mode](True)
                 self.time_handler = self.time_change_handlers[ClockClock24.modes["night mode"]]
 
-            self.time_change_handlers[self.night_mode](hour, minute)
+            self.time_change_handlers[night_mode](hour, minute)
         else:
             if __debug__:
                 print("its day")
-            if self.__current_mode_night != self.day_mode:
-                self.mode_change_handlers[self.night_mode](False)
-                self.__current_mode_night = self.day_mode
-                self.mode_change_handlers[self.day_mode](True)
+            if self.__current_mode_night != day_mode:
+                self.mode_change_handlers[night_mode](False)
+                self.__current_mode_night = day_mode
+                self.mode_change_handlers[day_mode](True)
                 self.time_handler = self.time_change_handlers[ClockClock24.modes["night mode"]]
 
-            self.time_change_handlers[self.day_mode](hour, minute)
+            self.time_change_handlers[day_mode](hour, minute)
 
     def __stealth_new_time(self, hour: int, minute: int):
         self.cancel_display_tasks()
@@ -443,9 +448,7 @@ class ClockClock24:
         self.digit_display.display_mode(self.persistent.get_var("night mode"))
         
     def __settings_one_style_disp(self):
-        self.digit_display.display_mode(1)
-        
-        # todo implement
+        self.digit_display.display_mode(0)
 
     def __settings_display_time(self, hour, minute):
         self.cancel_display_tasks()

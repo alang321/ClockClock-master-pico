@@ -37,6 +37,9 @@ class PersistentStorage:
             
     def read_flash(self):
         try:
+            if __debug__:
+                print("trying to read from flash:", self.filename)
+                
             f = open(self.filename, "r")
             string = f.readline()
             self.__var_values = json.loads(string)
@@ -62,3 +65,6 @@ class PersistentStorage:
         f = open(self.filename, "w")
         f.write(data_str)
         f.close()
+        
+        if __debug__:
+            print("wrote to flash:", self.filename)
