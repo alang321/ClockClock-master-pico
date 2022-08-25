@@ -44,8 +44,7 @@ class DigitDisplay:
     # fractional position of the pointer, first sublist is hour hand second is minute hand, 0.0 at the 12 o clock position and 0.5 at 6 o clock
     # from top left, rows first
     digits_pointer_pos_frac =  [[[0.5, 0.5, 0.5, 0.5, 0.25, 0.75],   [0.25, 0.75, 0, 0, 0, 0]],             # 0
-                               [[0.625, 0.5, 0.125, 0, 0.625, 0],    [0.625, 0.625, 0.125, 0.5, 0.625, 0]],   # 1, with angled line on top
-                               #[[0.625, 0.5, 0.625, 0, 0.625, 0],    [0.625, 0.5, 0.625, 0.5, 0.625, 0]],   # 1, classic 7 segment straight line
+                               [[0.625, 0.5, 0.125, 0, 0.625, 0],    [0.625, 0.625, 0.125, 0.5, 0.625, 0]], # 1, with angled line on top
                                [[0.25, 0.75, 0.5, 0.75, 0.25, 0.75], [0.25, 0.5, 0.25, 0, 0, 0.75]],        # 2
                                [[0.25, 0.75, 0.25, 0, 0.25, 0.75],   [0.25, 0.5, 0.25, 0.75, 0.25, 0]],     # 3
                                [[0.5, 0.5, 0, 0, 0.625, 0],          [0.5, 0.5, 0.25, 0.5, 0.625, 0]],      # 4
@@ -53,7 +52,8 @@ class DigitDisplay:
                                [[0.5, 0.75, 0, 0.75, 0, 0],          [0.25, 0.75, 0.5, 0.5, 0.25, 0.75]],   # 6
                                [[0.25, 0.5, 0.625, 0.5, 0.625, 0],   [0.25, 0.75, 0.625, 0, 0.625, 0]],     # 7
                                [[0.5, 0.5, 0, 0, 0, 0],              [0.25, 0.75, 0.25, 0.75, 0.25, 0.75]], # 8
-                               [[0.5, 0.5, 0.25, 0.5, 0.25, 0],      [0.25, 0.75, 0, 0, 0.25, 0.75]]]       # 9
+                               [[0.5, 0.5, 0.25, 0.5, 0.25, 0],      [0.25, 0.75, 0, 0, 0.25, 0.75]],       # 9
+                               [[0.625, 0.5, 0.625, 0, 0.625, 0],    [0.625, 0.5, 0.625, 0.5, 0.625, 0]]]   # 1, classic 7 segment straight line
     
     #animations modes for position transitions
     animations = {
@@ -122,6 +122,9 @@ class DigitDisplay:
         extra_revs : int, optional
             how many extra revolutions should be made, ignored when direction is 0 (default is 0)
         """
+        if self.clockclock.persistent.get_var("one style") == 1 and digit ==1:
+            digit += 9
+            
         if extra_revs == 0 or direction == 0:
             for sub_index, clk_index in enumerate(self.digit_display_indices[field]):
                 self.hour_steppers[clk_index].move_to(self.digits_pointer_pos_abs[digit][0][sub_index], direction)
@@ -142,6 +145,10 @@ class DigitDisplay:
         new_positions_1 = [default_pos] * 24
         for digit_id, field in enumerate(range(4 - digit_count, 4)):
             digit = int(mode_string[digit_id])
+            
+            if self.clockclock.persistent.get_var("one style") == 1 and digit == 1:
+                digit += 9
+                
             for sub_index, clk_index in enumerate(self.digit_display_indices[field]):
                 new_positions_0[clk_index] = self.digits_pointer_pos_abs[digit][0][sub_index]
                 new_positions_1[clk_index] = self.digits_pointer_pos_abs[digit][1][sub_index]
@@ -164,6 +171,9 @@ class DigitDisplay:
         new_positions_m = [0] * 24
         
         for field, digit in enumerate(digits):
+            if self.clockclock.persistent.get_var("one style") == 1 and digit == 1:
+                digit += 9
+                
             for sub_index, clk_index in enumerate(DigitDisplay.digit_display_indices[field]):
                 new_positions_h[clk_index] = self.digits_pointer_pos_abs[digit][0][sub_index]
                 new_positions_m[clk_index] = self.digits_pointer_pos_abs[digit][1][sub_index]
@@ -328,7 +338,7 @@ class DigitDisplay:
         # left is poitive y axis
         # origin is at the center of top left clock
         #center, top left, bottom left, bottom right, top right
-        points = [[-1, -3.5], [0.5, 0.5], [-2.5, 0.5], [-2.5, -7.5], [0.5, -7.5]]  #in units of clock spacing (10cm in this case)
+        points = [[-1, -3.5], [-1, -3.5], [0.5, 0.5], [-2.5, -7.5]]  #in units of clock spacing (10cm in this case)
         point = random.choice(points)
         
         for clk_index in range(24):
@@ -476,52 +486,58 @@ class DigitDisplay:
         """
         extra_revs = 1
         ms_delay = 400
+        ms_delay_start = 300
         direction = random.choice([-1, 1])
         
         # up is poitive x axis
         # left is poitive y axis
         # origin is at the center of top left clock
         q_magnitudes = [1, -1]
-        points = random.choice([[[-1, -1.5], [-1, -5.5]], [[0.5, 0.5], [0.5, -7.5]], [[-2.5, 0.5], [-2.5, -7.5]]]) 
-        point_1 = points[0]
-        point_2 = points[1]
+        point_1 = random.choice([[-1, -1.5], [0.5, 0.5], [-2.5, 0.5]])
+        point_2 = random.choice([[-1, -5.5], [0.5, -7.5], [-2.5, -7.5]])
         q_locations = [point_1, point_2]
         
-        for clk_index in range(24):
-            # this assumes equal vertical and horizontal clock spacing, which is the case obv
-            row = clk_index // 8
-            col = clk_index % 8
-            
-            #the locations of the current stepper in units of clock spacing
-            loc_x = -row
-            loc_y = -col
-            
-            E_total = [0, 0]
-            
-            for q_index, q_magnitude in enumerate(q_magnitudes):
-                point_x = q_locations[q_index][0]
-                point_y = q_locations[q_index][1]
-
-                dist_x = loc_x - point_x
-                dist_y = loc_y - point_y
+        
+        
+        for col_index, col in enumerate(self.column_indices):
+            if col_index != 0:
+                await asyncio.sleep_ms(ms_delay_start)
                 
-                # the point the steppers should point too in units of clock spacing
-                distance = math.sqrt(dist_x**2 + dist_y**2)
+            for clk_index in col:
+                # this assumes equal vertical and horizontal clock spacing, which is the case obv
+                row = clk_index // 8
+                col = clk_index % 8
                 
-                E_vector = [q_magnitude/distance**2*dist_x/distance, q_magnitude/distance**2*dist_y/distance]
-
-                E_total = [E_vector[0] + E_total[0], E_vector[1] + E_total[1]]
+                #the locations of the current stepper in units of clock spacing
+                loc_x = -row
+                loc_y = -col
                 
-            eq = [E_total[1], -E_total[0]]#direction of quipotential lines, normal to field lines
-            
-            theta = (-math.atan2(eq[1], eq[0]) + math.pi * 2) % (math.pi * 2) 
-            frac_ang = theta / (math.pi * 2)  # angle from 12 o clock position in cw dir
+                E_total = [0, 0]
+                
+                for q_index, q_magnitude in enumerate(q_magnitudes):
+                    point_x = q_locations[q_index][0]
+                    point_y = q_locations[q_index][1]
 
-            start_pos_m = frac_ang * self.steps_full_rev
-            start_pos_h = ((frac_ang + 0.5) * self.steps_full_rev) % self.steps_full_rev
-            
-            self.hour_steppers[clk_index].move_to(int(start_pos_h), 0)
-            self.minute_steppers[clk_index].move_to(int(start_pos_m), 0)
+                    dist_x = loc_x - point_x
+                    dist_y = loc_y - point_y
+                    
+                    # the point the steppers should point too in units of clock spacing
+                    distance = math.sqrt(dist_x**2 + dist_y**2)
+                    
+                    E_vector = [q_magnitude/distance**2*dist_x/distance, q_magnitude/distance**2*dist_y/distance]
+
+                    E_total = [E_vector[0] + E_total[0], E_vector[1] + E_total[1]]
+                    
+                eq = [E_total[1], -E_total[0]]#direction of quipotential lines, normal to field lines
+                
+                theta = (-math.atan2(eq[1], eq[0]) + math.pi * 2) % (math.pi * 2) 
+                frac_ang = theta / (math.pi * 2)  # angle from 12 o clock position in cw dir
+
+                start_pos_m = frac_ang * self.steps_full_rev
+                start_pos_h = ((frac_ang + 0.5) * self.steps_full_rev) % self.steps_full_rev
+                
+                self.hour_steppers[clk_index].move_to(int(start_pos_h), 0)
+                self.minute_steppers[clk_index].move_to(int(start_pos_m), 0)
 
         #wait for move to be done
         self.clockclock.movement_done_event.clear()
@@ -573,18 +589,23 @@ class DigitDisplay:
         extra_revs : int
             optional parameter for extra revs
         """
-        ms_delay = 400
+        ms_delay = 300
         
-        for clk_index in range(24):
-            direction = random.choice([-1, 1])
-            position = random.randrange(self.steps_full_rev)
-            self.hour_steppers[clk_index].move_to(position, direction)
-            direction = random.choice([-1, 1])
-            position = random.randrange(self.steps_full_rev)
-            self.minute_steppers[clk_index].move_to(position, direction)
+        for col_index, col in enumerate(self.column_indices):
+            if col_index != 0:
+                await asyncio.sleep_ms(ms_delay)
+            for clk_index in col:
+                direction = random.choice([-1, 1])
+                position = random.randrange(self.steps_full_rev)
+                self.hour_steppers[clk_index].move_to(position, direction)
+                direction = random.choice([-1, 1])
+                position = random.randrange(self.steps_full_rev)
+                self.minute_steppers[clk_index].move_to(position, direction)
 
         self.clockclock.movement_done_event.clear()
         await self.clockclock.movement_done_event.wait()
+        
+        ms_delay = 400
         
         for col_index, col in enumerate(self.column_indices):
             if col_index != 0:
