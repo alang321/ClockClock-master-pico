@@ -150,9 +150,6 @@ class DigitDisplay:
         new_positions_1 = [default_pos] * 24
         for digit_id, field in enumerate(range(4 - digit_count, 4)):
             digit = int(mode_string[digit_id])
-            
-            if self.clockclock.persistent.get_var("one style") == 1 and digit == 1:
-                digit += 9
                 
             for sub_index, clk_index in enumerate(self.digit_display_indices[field]):
                 new_positions_0[clk_index] = self.__get_digit_pos_abs(digit)[0][sub_index]
@@ -176,9 +173,6 @@ class DigitDisplay:
         new_positions_m = [0] * 24
         
         for field, digit in enumerate(digits):
-            if self.clockclock.persistent.get_var("one style") == 1 and digit == 1:
-                digit += 9
-                
             for sub_index, clk_index in enumerate(DigitDisplay.digit_display_indices[field]):
                 new_positions_h[clk_index] = self.__get_digit_pos_abs(digit)[0][sub_index]
                 new_positions_m[clk_index] = self.__get_digit_pos_abs(digit)[1][sub_index]
