@@ -37,6 +37,12 @@ class ClockClock24:
     
     def __init__(self, slave_adr_list, i2c_bus_list, clk_i2c_bus, clk_interrupt_pin, steps_full_rev=4320):
         # persistent data
+        self.__nightmode_allowed_modes = [ClockClock24.modes["visual"],
+                                          ClockClock24.modes["shortest path"],
+                                          ClockClock24.modes["stealth"],
+                                          ClockClock24.modes["analog"],
+                                          ClockClock24.modes["sleep"]]
+        
         var_lst = [PersistentStorage.persistent_var("night start", [21, 0], lambda a : (0 <= a[0] <= 23 and 0 <= a[1] <= 59)), # todo fix
                    PersistentStorage.persistent_var("night end", [9, 30], lambda a : (0 <= a[0] <= 23 and 0 <= a[1] <= 59)),
                    PersistentStorage.persistent_var("night mode", ClockClock24.modes["stealth"], lambda a : True if a in self.__nightmode_allowed_modes else False),
@@ -112,11 +118,6 @@ class ClockClock24:
                                          self.__settings_eight_style_disp]
         self.__settings_do_display_new_time = [True, False, False, False, False, False, False]
         self.__settings_pagecount = len(self.__settings_display_funcs)
-        self.__nightmode_allowed_modes = [ClockClock24.modes["visual"],
-                                          ClockClock24.modes["shortest path"],
-                                          ClockClock24.modes["stealth"],
-                                          ClockClock24.modes["analog"],
-                                          ClockClock24.modes["sleep"]]
         self.__persistent_data_changed = False
         
         # night mode

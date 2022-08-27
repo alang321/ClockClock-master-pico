@@ -52,6 +52,7 @@ class PersistentStorage:
         except Exception as e:
             if __debug__:
                 print(str(e))
+                print("Resetting to default values")
             
             self.__var_values = []
             
@@ -59,6 +60,9 @@ class PersistentStorage:
                 self.__var_values.append(val)
 
             self.write_flash()
+            
+        if __debug__:
+            print("read data:", list(zip(self.__var_names, self.__var_values)))
 
     def write_flash(self):
         data_str = json.dumps(self.__var_values)
@@ -68,3 +72,4 @@ class PersistentStorage:
         
         if __debug__:
             print("wrote to flash:", self.filename)
+            print("data:", list(zip(self.__var_names, self.__var_values)))
