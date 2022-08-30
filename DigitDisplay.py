@@ -561,14 +561,23 @@ class DigitDisplay:
         extra_revs : int
             optional parameter for extra revs
         """
+        ms_delay = 400
         hour_speed = int(self.clockclock.current_speed * 0.38)
         
         for stepper in self.hour_steppers:
             stepper.set_speed(hour_speed)
             
-        for clk_index in range(24):
-            self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], 1, 1)
-            self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], 1, 3)
+        for col_index, col in enumerate(self.column_indices):
+            if col_index != 0:
+                try:
+                    await asyncio.sleep_ms(ms_delay)
+                except asyncio.CancelledError:
+                    self.clockclock.set_speed_all(self.clockclock.current_speed) # gets called only when task is cancelled
+                    raise
+                
+            for clk_index in col:
+                self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], 1, 1)
+                self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], 1, 3)
         
         self.clockclock.movement_done_event.clear()
         try:

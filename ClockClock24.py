@@ -18,12 +18,12 @@ class ClockClock24:
     stepper_accel_default = 210
     
     #used in stealth mode
-    stepper_speed_stealth = 135
-    stepper_accel_stealth = 45
+    stepper_speed_stealth = 110
+    stepper_accel_stealth = 60
     
     #used in analog mode
-    stepper_speed_analog = 70
-    stepper_accel_analog = 50
+    stepper_speed_analog = 30
+    stepper_accel_analog = 20
     
     modes = {
       "night mode": 0,
