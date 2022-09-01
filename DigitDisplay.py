@@ -873,7 +873,7 @@ class DigitDisplay:
         targetpos_h = [2628, 1959, 2248, 2160]
         startpos_m = int(self.steps_full_rev - 864)
         targetpos_m = [int(self.steps_full_rev/2) + (int(self.steps_full_rev/2) - i) for i in targetpos_h]
-        speed = [int(i * 0.9) for i in [1181, 511, 224, 99]]
+        speed = [int(i * 0.9) for i in [1000, 511, 224, 99]]
         accel = [int(i * 0.9) for i in [1422, 1072, 490, 217]]
         
         self.clockclock.move_to_hour(startpos_h, 0)
