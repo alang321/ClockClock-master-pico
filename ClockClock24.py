@@ -68,7 +68,8 @@ class ClockClock24:
                                      DigitDisplay.animations["opposing wave"],
                                      DigitDisplay.animations["circle"],
                                      DigitDisplay.animations["smaller bigger"],
-                                     DigitDisplay.animations["small circles"]]
+                                     DigitDisplay.animations["small circles"],
+                                     DigitDisplay.animations["uhrenspiel"]]
         self.random_shuffle(self.visual_animation_ids)
         self.animation_index = 0
 
@@ -203,27 +204,27 @@ class ClockClock24:
     
     def __stealth(self, start):
         if start:
-            self.time_handler = self.time_change_handlers[ClockClock24.modes["stealth"]]
             self.set_speed_all(ClockClock24.stepper_speed_stealth)
             self.set_accel_all(ClockClock24.stepper_accel_stealth)
+            self.time_handler = self.time_change_handlers[ClockClock24.modes["stealth"]]
     
     def __shortest_path(self, start):
         if start:
-            self.time_handler = self.time_change_handlers[ClockClock24.modes["shortest path"]]
             self.set_speed_all(ClockClock24.stepper_speed_default)
             self.set_accel_all(ClockClock24.stepper_accel_default)
+            self.time_handler = self.time_change_handlers[ClockClock24.modes["shortest path"]]
     
     def __visual(self, start):
         if start:
-            self.time_handler = self.time_change_handlers[ClockClock24.modes["visual"]]
             self.set_speed_all(ClockClock24.stepper_speed_default)
             self.set_accel_all(ClockClock24.stepper_accel_default)
+            self.time_handler = self.time_change_handlers[ClockClock24.modes["visual"]]
     
     def __analog(self, start):
         if start:
-            self.time_handler = self.time_change_handlers[ClockClock24.modes["analog"]]
             self.set_speed_all(ClockClock24.stepper_speed_analog)
             self.set_accel_all(ClockClock24.stepper_accel_analog)
+            self.time_handler = self.time_change_handlers[ClockClock24.modes["analog"]]
     
     def __night_mode(self, start):
         if start:
@@ -235,9 +236,9 @@ class ClockClock24:
     
     def __settings(self, start):
         if start:
-            self.time_handler = self.time_change_handlers[ClockClock24.modes["settings"]]
             self.set_speed_all(ClockClock24.stepper_speed_fast)
             self.set_accel_all(ClockClock24.stepper_accel_fast)
+            self.time_handler = self.time_change_handlers[ClockClock24.modes["settings"]]
             self.__settings_current_page = 0
             self.__settings_current_digit = 3
             self.__persistent_data_changed = False
@@ -250,9 +251,9 @@ class ClockClock24:
 
     def __sleep(self, start):
         if start:
-            self.time_handler = self.time_change_handlers[self.__current_mode]
             self.set_speed_all(ClockClock24.stepper_speed_default)
             self.set_accel_all(ClockClock24.stepper_accel_default)
+            self.time_handler = self.time_change_handlers[self.__current_mode]
         
             self.move_to_all(int(0.5*self.steps_full_rev))
 
@@ -508,36 +509,6 @@ class ClockClock24:
         """
         for module in self.clock_modules:
             module.enable_disable_driver_module(enable_disable)
-    
-    def set_speed_all(self, speed: int):
-        self.current_speed = speed
-        for module in self.clock_modules:
-            module.set_speed_module(speed)
-    
-    def set_accel_all(self, accel: int):
-        self.current_accel = accel
-        for module in self.clock_modules:
-            module.set_accel_module(accel)
-    
-    def move_to_all(self, position: int, direction = 0):
-        for module in self.clock_modules:
-            module.move_to_module(position, direction)
-    
-    def move_to_extra_revs_all(self, position: int, direction: int, extra_revs: int):
-        for module in self.clock_modules:
-            module.move_to_extra_revs_module(position, direction, extra_revs)
-
-    def moveTo_min_steps_all(self): 
-        for module in self.clock_modules:
-            module.move_to_min_steps_module()
-    
-    def move_all(self, distance: int, direction: int):
-        for module in self.clock_modules:
-            module.move_module(distance, direction)
-        
-    def stop_all(self):
-        for module in self.clock_modules:
-            module.stop_module()
 
     def is_running(self) -> bool: #returns True if stepper is running
         for module in self.clock_modules:
@@ -545,6 +516,94 @@ class ClockClock24:
                 return True
         
         return False
+    
+    def set_speed_all(self, speed: int):
+        self.current_speed = speed
+        for module in self.clock_modules:
+            module.all_steppers.set_speed(speed)
+    
+    def set_accel_all(self, accel: int):
+        self.current_accel = accel
+        for module in self.clock_modules:
+            module.all_steppers.set_accel(accel)
+    
+    def move_to_all(self, position: int, direction = 0):
+        for module in self.clock_modules:
+            module.all_steppers.move_to(position, direction)
+    
+    def move_to_extra_revs_all(self, position: int, direction: int, extra_revs: int):
+        for module in self.clock_modules:
+            module.all_steppers.move_to_extra_revs(position, direction, extra_revs)
+
+    def moveTo_min_steps_all(self, position: int, direction: int, min_steps: int): 
+        for module in self.clock_modules:
+            module.all_steppers.move_to_min_steps(position, direction, min_steps)
+    
+    def move_all(self, distance: int, direction: int):
+        for module in self.clock_modules:
+            module.all_steppers.move(distance, direction)
+        
+    def stop_all(self):
+        for module in self.clock_modules:
+            module.all_steppers.stop()
+    
+    # control hour steppers
+    def set_speed_hour(self, speed: int):
+        for module in self.clock_modules:
+            module.hour_steppers.set_speed(speed)
+    
+    def set_accel_hour(self, accel: int):
+        for module in self.clock_modules:
+            module.hour_steppers.set_accel(accel)
+    
+    def move_to_hour(self, position: int, direction = 0):
+        for module in self.clock_modules:
+            module.hour_steppers.move_to(position, direction)
+    
+    def move_to_extra_revs_hour(self, position: int, direction: int, extra_revs: int):
+        for module in self.clock_modules:
+            module.hour_steppers.move_to_extra_revs(position, direction, extra_revs)
+
+    def moveTo_min_steps_hour(self, position: int, direction: int, min_steps: int): 
+        for module in self.clock_modules:
+            module.hour_steppers.move_to_min_steps(position, direction, min_steps)
+    
+    def move_hour(self, distance: int, direction: int):
+        for module in self.clock_modules:
+            module.hour_steppers.move(distance, direction)
+        
+    def stop_hour(self):
+        for module in self.clock_modules:
+            module.hour_steppers.stop()
+    
+    # control minute steppers
+    def set_speed_minute(self, speed: int):
+        for module in self.clock_modules:
+            module.minute_steppers.set_speed(speed)
+    
+    def set_accel_minute(self, accel: int):
+        for module in self.clock_modules:
+            module.minute_steppers.set_accel(accel)
+    
+    def move_to_minute(self, position: int, direction = 0):
+        for module in self.clock_modules:
+            module.minute_steppers.move_to(position, direction)
+    
+    def move_to_extra_revs_minute(self, position: int, direction: int, extra_revs: int):
+        for module in self.clock_modules:
+            module.minute_steppers.move_to_extra_revs(position, direction, extra_revs)
+
+    def moveTo_min_steps_minute(self, position: int, direction: int, min_steps: int): 
+        for module in self.clock_modules:
+            module.minute_steppers.move_to_min_steps(position, direction, min_steps)
+    
+    def move_minute(self, distance: int, direction: int):
+        for module in self.clock_modules:
+            module.minute_steppers.move(distance, direction)
+        
+    def stop_minute(self):
+        for module in self.clock_modules:
+            module.minute_steppers.stop()
 
 #endregion
     

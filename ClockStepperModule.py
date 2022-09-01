@@ -16,6 +16,10 @@ class ClockModule: # module for 1 of the 6 pcbs in the clock
       "moveTo_min_steps": 8
     }
     
+    stepper_selector = {"minute":-3,
+                        "hour": -2,
+                        "all": -1}
+    
     def __init__(self, i2c_bus: machine.I2C, i2c_address: int, steps_full_rev: int):
         self.steps_full_rev = steps_full_rev
         self.i2c_bus = i2c_bus
@@ -27,6 +31,11 @@ class ClockModule: # module for 1 of the 6 pcbs in the clock
         self.minute_steppers = self.steppers[:4]
         self.hour_steppers = self.steppers[4:]
         
+        # commands a specific set of steppers
+        self.all_steppers = ClockStepper(self.stepper_selector["all"], self, self.steps_full_rev) 
+        self.hour_steppers = ClockStepper(self.stepper_selector["hour"], self, self.steps_full_rev)
+        self.minute_steppers = ClockStepper(self.stepper_selector["minute"], self, self.steps_full_rev)
+        
     def enable_disable_driver_module(self, enable_disable: bool):
         """
         true to enable driver of module
@@ -37,63 +46,6 @@ class ClockModule: # module for 1 of the 6 pcbs in the clock
         self.i2c_write(buffer)
             
         self.is_driver_enabled = enable_disable
-        
-    def set_speed_module(self, speed: int):
-        buffer = pack("<BHb", self.cmd_id["set_speed"], speed, self.sub_stepper_id) #cmd_id uint8, speed uint16, stepper_id int8          
-        
-        self.i2c_write(buffer)
-    
-    def set_accel_module(self, accel: int):
-        buffer = pack("<BHb", self.cmd_id["set_accel"], accel, self.sub_stepper_id) #cmd_id uint8, accel uint16, stepper_id int8             
-        
-        self.i2c_write(buffer)
-    
-    def move_to_module(self, position: int, direction: int): # dir: 0 - shortes path, 1 - cw, -1 - ccw
-        buffer = pack("<Bhbb", self.cmd_id["moveTo"], position, direction, self.sub_stepper_id) #cmd_id uint8, position int16, dir int8, stepper_id int8             
-        
-        self.i2c_write(buffer)
-            
-        for stepper in self.steppers:
-            stepper.current_target_pos = position
-    
-    def move_to_extra_revs_module(self, position: int, direction: int, extra_revs: int):
-        buffer = pack("<BhbBb", self.cmd_id["moveTo_extra_revs"], position, direction, extra_revs, self.sub_stepper_id) #cmd_id uint8, position int16, dir int8, extra_revs uint8, stepper_id int8           
-
-        self.i2c_write(buffer)
-            
-        for stepper in self.steppers:
-            stepper.current_target_pos = position
-    
-    def move_to_min_steps_module(self, position: int, direction: int, min_steps: int):
-        buffer = pack("<BhbHb", self.cmd_id["moveTo_min_steps"], position, direction, min_steps, self.sub_stepper_id) #cmd_id uint8, position int16, dir int8, min_steps uint16, stepper_id int8           
-
-        self.i2c_write(buffer)
-            
-        for stepper in self.steppers:
-            stepper.current_target_pos = position
-    
-    def move_module(self, distance: int, direction: int):
-        buffer = pack("<BHbb", self.cmd_id["move"], distance, direction, self.sub_stepper_id) #cmd_id uint8, distance uint16, dir int8, stepper_id int8
-
-        self.i2c_write(buffer)
-            
-        for stepper in self.steppers:
-            relative = (distance * direction) % self.steps_full_rev
-        
-            stepper.current_target_pos = (self.steps_full_rev + stepper.current_target_pos + relative) % self.steps_full_rev
-        
-    def stop_module(self):
-        buffer = pack("<Bb", self.cmd_id["stop"], self.sub_stepper_id) #cmd_id uint8, stepper_id int8           
-        
-        self.i2c_write(buffer)
-            
-        for stepper in self.steppers:
-            stepper.current_target_pos = -1
-
-    def wiggle_module(self, distance: int, direction: int):
-        buffer = pack("<BHbb", self.cmd_id["wiggle"], distance, direction, self.sub_stepper_id) #cmd_id uint8, distance uint16, dir int8, stepper_id int8
-
-        self.i2c_write(buffer)
     
     def is_running_module(self) -> bool: #returns True if stepper is running
         buffer = self.i2c_read(1)

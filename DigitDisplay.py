@@ -75,6 +75,7 @@ class DigitDisplay:
       "circle": 13,# a big circle that collapses to the center
       "smaller bigger": 14, # idk
       "small circles": 15, # small circles made of 4 clocks each
+      "uhrenspiel": 16, # dangling pointers
       }
     
     def __init__(self, clockclock, number_style_options):
@@ -109,7 +110,8 @@ class DigitDisplay:
             self.new_pose_opposing_wave,
             self.new_pose_circle,
             self.new_pose_smaller_bigger,
-            self.new_pose_small_circles
+            self.new_pose_small_circles,
+            self.new_pose_uhrenspiel
           ]
         
         self.digits_pointer_pos_abs = [[[[int(frac * self.steps_full_rev) for frac in hour_minute] for hour_minute in digit_option] for digit_option in number] for number in DigitDisplay.digits_pointer_pos_frac]
@@ -281,9 +283,8 @@ class DigitDisplay:
         start_pos_m = int(self.steps_full_rev * start_ang)
         start_pos_h = int(self.steps_full_rev * (start_ang - 0.5))
         
-        for clk_index in range(24):
-            self.hour_steppers[clk_index].move_to(start_pos_h, 0)
-            self.minute_steppers[clk_index].move_to(start_pos_m, 0)
+        self.clockclock.move_to_hour(start_pos_h, 0)
+        self.clockclock.move_to_minute(start_pos_m, 0)
 
         self.clockclock.movement_done_event.clear()
         await self.clockclock.movement_done_event.wait()
@@ -562,17 +563,17 @@ class DigitDisplay:
             optional parameter for extra revs
         """
         ms_delay = 400
+        oldspeed = self.clockclock.current_speed
         hour_speed = int(self.clockclock.current_speed * 0.38)
         
-        for stepper in self.hour_steppers:
-            stepper.set_speed(hour_speed)
+        self.clockclock.set_speed_hour(hour_speed)
             
         for col_index, col in enumerate(self.column_indices):
             if col_index != 0:
                 try:
                     await asyncio.sleep_ms(ms_delay)
                 except asyncio.CancelledError:
-                    self.clockclock.set_speed_all(self.clockclock.current_speed) # gets called only when task is cancelled
+                    self.clockclock.set_speed_hour(oldspeed) # gets called only when task is cancelled
                     raise
                 
             for clk_index in col:
@@ -583,7 +584,7 @@ class DigitDisplay:
         try:
             await self.clockclock.movement_done_event.wait()
         finally:
-            self.clockclock.set_speed_all(self.clockclock.current_speed) #always gets called, even when task is cancelled
+            self.clockclock.set_speed_hour(oldspeed) #always gets called, even when task is cancelled
 
     async def new_pose_random(self, new_positions_h, new_positions_m):
         """all clocks move to unique radnom position, once all clocks reach the move to correct one with shortest path
@@ -852,4 +853,54 @@ class DigitDisplay:
         for clk_index in range(24):
             self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], 1, extra_revs)
             self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], -1, extra_revs)
-                
+            
+    async def new_pose_uhrenspiel(self, new_positions_h, new_positions_m):
+        """uhrenspiel, dangling pointers
+        
+        Parameters
+        ----------
+        new_positions_h : List[int]
+            the positions to display for hour steppers, should int arrays of length 24
+        new_positions_m : List[int]
+            the positions to display for hour steppers, should int arrays of length 24
+        """
+        oldspeed = self.clockclock.current_speed
+        oldaccel = self.clockclock.current_accel
+        
+        # these values are generated with a scipy script
+        # simulating a damped pendulum and taking peak accel and speed values for each period
+        startpos_h = 864
+        targetpos_h = [2628, 1959, 2248, 2121, 2177, 2153, 2163, 2160]
+        startpos_m = int(self.steps_full_rev - 864)
+        targetpos_m = [int(self.steps_full_rev/2) + (int(self.steps_full_rev/2) - i) for i in targetpos_h]
+        speed = [int(i * 0.9) for i in [1181, 511, 224, 99, 43, 19, 8, 4]]
+        accel = [int(i * 0.9) for i in [1422, 1072, 490, 217, 96, 42, 19, 8]]
+        
+        self.clockclock.move_to_hour(startpos_h, 0)
+        self.clockclock.move_to_minute(startpos_m, 0)
+        
+        self.clockclock.movement_done_event.clear()
+        await self.clockclock.movement_done_event.wait()
+        
+        for i in range(len(speed)):
+            self.clockclock.set_speed_all(speed[i])
+            self.clockclock.set_accel_all(accel[i])
+            
+            self.clockclock.move_to_hour(targetpos_h[i], 0)
+            self.clockclock.move_to_minute(targetpos_m[i], 0)
+            
+            self.clockclock.movement_done_event.clear()
+            try:
+                await self.clockclock.movement_done_event.wait()
+            except asyncio.CancelledError:
+                self.clockclock.set_speed_all(oldspeed) # only gets called when task is cancelled
+                self.clockclock.set_accel_all(oldaccel)
+                raise
+    
+        self.clockclock.set_speed_all(oldspeed)
+        self.clockclock.set_accel_all(oldaccel)
+            
+        for clk_index in range(24):
+            self.hour_steppers[clk_index].move_to(new_positions_h[clk_index], 0)
+            self.minute_steppers[clk_index].move_to(new_positions_m[clk_index], 0)
+        
