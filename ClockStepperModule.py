@@ -33,8 +33,8 @@ class ClockModule: # module for 1 of the 6 pcbs in the clock
         
         # commands a specific set of steppers
         self.all_steppers = ClockStepper(self.stepper_selector["all"], self, self.steps_full_rev) 
-        self.hour_steppers = ClockStepper(self.stepper_selector["hour"], self, self.steps_full_rev)
-        self.minute_steppers = ClockStepper(self.stepper_selector["minute"], self, self.steps_full_rev)
+        self.all_hour_steppers = ClockStepper(self.stepper_selector["hour"], self, self.steps_full_rev)
+        self.all_minute_steppers = ClockStepper(self.stepper_selector["minute"], self, self.steps_full_rev)
         
     def enable_disable_driver_module(self, enable_disable: bool):
         """

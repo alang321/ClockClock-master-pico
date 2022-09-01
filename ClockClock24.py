@@ -529,81 +529,126 @@ class ClockClock24:
     
     def move_to_all(self, position: int, direction = 0):
         for module in self.clock_modules:
+            for stepper in module.steppers:
+                stepper.current_target_pos = position
+                
             module.all_steppers.move_to(position, direction)
     
     def move_to_extra_revs_all(self, position: int, direction: int, extra_revs: int):
         for module in self.clock_modules:
+            for stepper in module.steppers:
+                stepper.current_target_pos = position
+                
             module.all_steppers.move_to_extra_revs(position, direction, extra_revs)
 
     def moveTo_min_steps_all(self, position: int, direction: int, min_steps: int): 
         for module in self.clock_modules:
+            for stepper in module.steppers:
+                stepper.current_target_pos = position
+                
             module.all_steppers.move_to_min_steps(position, direction, min_steps)
     
     def move_all(self, distance: int, direction: int):
         for module in self.clock_modules:
+            for stepper in module.steppers:
+                stepper.current_target_pos = (distance * direction) % module.steps_full_rev
+                
             module.all_steppers.move(distance, direction)
         
     def stop_all(self):
         for module in self.clock_modules:
+            for stepper in module.steppers:
+                stepper.current_target_pos = -1
+                
             module.all_steppers.stop()
     
     # control hour steppers
     def set_speed_hour(self, speed: int):
         for module in self.clock_modules:
-            module.hour_steppers.set_speed(speed)
+            module.all_hour_steppers.set_speed(speed)
     
     def set_accel_hour(self, accel: int):
         for module in self.clock_modules:
-            module.hour_steppers.set_accel(accel)
+            module.all_hour_steppers.set_accel(accel)
     
     def move_to_hour(self, position: int, direction = 0):
         for module in self.clock_modules:
-            module.hour_steppers.move_to(position, direction)
+            for stepper in module.hour_steppers:
+                stepper.current_target_pos = position
+                
+            module.all_hour_steppers.move_to(position, direction)
     
     def move_to_extra_revs_hour(self, position: int, direction: int, extra_revs: int):
         for module in self.clock_modules:
-            module.hour_steppers.move_to_extra_revs(position, direction, extra_revs)
+            for stepper in module.hour_steppers:
+                stepper.current_target_pos = position
+                
+            module.all_hour_steppers.move_to_extra_revs(position, direction, extra_revs)
 
     def moveTo_min_steps_hour(self, position: int, direction: int, min_steps: int): 
         for module in self.clock_modules:
-            module.hour_steppers.move_to_min_steps(position, direction, min_steps)
+            for stepper in module.hour_steppers:
+                stepper.current_target_pos = position
+                
+            module.all_hour_steppers.move_to_min_steps(position, direction, min_steps)
     
     def move_hour(self, distance: int, direction: int):
         for module in self.clock_modules:
-            module.hour_steppers.move(distance, direction)
+            for stepper in module.hour_steppers:
+                stepper.current_target_pos = (distance * direction) % module.steps_full_rev
+                
+            module.all_hour_steppers.move(distance, direction)
         
     def stop_hour(self):
         for module in self.clock_modules:
-            module.hour_steppers.stop()
+            for stepper in module.hour_steppers:
+                stepper.current_target_pos = -1
+                
+            module.all_hour_steppers.stop()
     
     # control minute steppers
     def set_speed_minute(self, speed: int):
         for module in self.clock_modules:
-            module.minute_steppers.set_speed(speed)
+            module.all_minute_steppers.set_speed(speed)
     
     def set_accel_minute(self, accel: int):
         for module in self.clock_modules:
-            module.minute_steppers.set_accel(accel)
+            module.all_minute_steppers.set_accel(accel)
     
     def move_to_minute(self, position: int, direction = 0):
         for module in self.clock_modules:
-            module.minute_steppers.move_to(position, direction)
+            for stepper in module.minute_steppers:
+                stepper.current_target_pos = position
+                
+            module.all_minute_steppers.move_to(position, direction)
     
     def move_to_extra_revs_minute(self, position: int, direction: int, extra_revs: int):
         for module in self.clock_modules:
-            module.minute_steppers.move_to_extra_revs(position, direction, extra_revs)
+            for stepper in module.minute_steppers:
+                stepper.current_target_pos = position
+                
+            module.all_minute_steppers.move_to_extra_revs(position, direction, extra_revs)
 
     def moveTo_min_steps_minute(self, position: int, direction: int, min_steps: int): 
         for module in self.clock_modules:
-            module.minute_steppers.move_to_min_steps(position, direction, min_steps)
+            for stepper in module.minute_steppers:
+                stepper.current_target_pos = position
+                
+            module.all_minute_steppers.move_to_min_steps(position, direction, min_steps)
     
     def move_minute(self, distance: int, direction: int):
         for module in self.clock_modules:
-            module.minute_steppers.move(distance, direction)
+            for stepper in module.minute_steppers:
+                stepper.current_target_pos = (distance * direction) % module.steps_full_rev
+                
+            module.all_minute_steppers.move(distance, direction)
         
     def stop_minute(self):
         for module in self.clock_modules:
-            module.minute_steppers.stop()
+            for stepper in module.minute_steppers:
+                stepper.current_target_pos = -1
+                
+            module.all_minute_steppers.stop()
 
 #endregion
     
