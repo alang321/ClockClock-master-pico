@@ -870,21 +870,22 @@ class DigitDisplay:
         # these values are generated with a scipy script
         # simulating a damped pendulum and taking peak accel and speed values for each period
         startpos_h = 864
-        targetpos_h = [2628, 1959, 2248, 2121, 2177, 2153, 2163, 2160]
+        targetpos_h = [2628, 1959, 2248, 2160]
         startpos_m = int(self.steps_full_rev - 864)
         targetpos_m = [int(self.steps_full_rev/2) + (int(self.steps_full_rev/2) - i) for i in targetpos_h]
-        speed = [int(i * 0.9) for i in [1181, 511, 224, 99, 43, 19, 8, 4]]
-        accel = [int(i * 0.9) for i in [1422, 1072, 490, 217, 96, 42, 19, 8]]
+        speed = [int(i * 0.9) for i in [1181, 511, 224, 99]]
+        accel = [int(i * 0.9) for i in [1422, 1072, 490, 217]]
         
         self.clockclock.move_to_hour(startpos_h, 0)
         self.clockclock.move_to_minute(startpos_m, 0)
         
         self.clockclock.movement_done_event.clear()
         await self.clockclock.movement_done_event.wait()
+        self.clockclock.set_accel_all(750)
         
         for i in range(len(speed)):
             self.clockclock.set_speed_all(speed[i])
-            self.clockclock.set_accel_all(accel[i])
+            #self.clockclock.set_accel_all(accel[i])
             
             self.clockclock.move_to_hour(targetpos_h[i], 0)
             self.clockclock.move_to_minute(targetpos_m[i], 0)
@@ -899,6 +900,8 @@ class DigitDisplay:
     
         self.clockclock.set_speed_all(oldspeed)
         self.clockclock.set_accel_all(oldaccel)
+        
+        await asyncio.sleep_ms(1000)
             
         for clk_index in range(24):
             self.hour_steppers[clk_index].move_to(new_positions_h[clk_index], 0)
