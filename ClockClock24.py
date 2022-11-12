@@ -18,8 +18,8 @@ class ClockClock24:
     stepper_accel_default = 210
     
     #used in stealth mode
-    stepper_speed_stealth = 135
-    stepper_accel_stealth = 45
+    stepper_speed_stealth = 117
+    stepper_accel_stealth = 55
     
     #used in analog mode
     stepper_speed_analog = 30
@@ -69,7 +69,8 @@ class ClockClock24:
                                      DigitDisplay.animations["circle"],
                                      DigitDisplay.animations["smaller bigger"],
                                      DigitDisplay.animations["small circles"],
-                                     DigitDisplay.animations["uhrenspiel"]]
+                                     #DigitDisplay.animations["uhrenspiel"]
+                                     ]
         self.random_shuffle(self.visual_animation_ids)
         self.animation_index = 0
 
