@@ -43,12 +43,20 @@ class ClockClock24:
                                           ClockClock24.modes["analog"],
                                           ClockClock24.modes["sleep"]]
         
+        self.__defaultmode_allowed_modes = [ClockClock24.modes["night mode"],
+                                            ClockClock24.modes["visual"],
+                                            ClockClock24.modes["shortest path"],
+                                            ClockClock24.modes["stealth"],
+                                            ClockClock24.modes["analog"],
+                                            ClockClock24.modes["sleep"]]
+        
         var_lst = [PersistentStorage.persistent_var("night start", [21, 0], lambda a : (0 <= a[0] <= 23 and 0 <= a[1] <= 59)), # todo fix
                    PersistentStorage.persistent_var("night end", [9, 30], lambda a : (0 <= a[0] <= 23 and 0 <= a[1] <= 59)),
                    PersistentStorage.persistent_var("night mode", ClockClock24.modes["stealth"], lambda a : True if a in self.__nightmode_allowed_modes else False),
                    PersistentStorage.persistent_var("day mode", ClockClock24.modes["visual"], lambda a : True if a in self.__nightmode_allowed_modes else False),
                    PersistentStorage.persistent_var("one style", 0, lambda a : True if a in [0, 1] else False),
-                   PersistentStorage.persistent_var("eight style", 0, lambda a : True if a in [0, 1, 2] else False)]
+                   PersistentStorage.persistent_var("eight style", 0, lambda a : True if a in [0, 1, 2] else False),
+                   PersistentStorage.persistent_var("default mode", ClockClock24.modes["night mode"], lambda a : True if a in self.__defaultmode_allowed_modes else False)]
         
         self.persistent = PersistentStorage("settings", var_lst)
         
@@ -116,9 +124,10 @@ class ClockClock24:
                                          self.__settings_night_end_disp,
                                          self.__settings_mode_day_disp,
                                          self.__settings_mode_night_disp,
+                                         self.__settings_mode_default_disp,
                                          self.__settings_one_style_disp,
                                          self.__settings_eight_style_disp]
-        self.__settings_do_display_new_time = [True, False, False, False, False, False, False]
+        self.__settings_do_display_new_time = [True, False, False, False, False, False, False, False]
         self.__settings_pagecount = len(self.__settings_display_funcs)
         self.__persistent_data_changed = False
         
@@ -126,7 +135,7 @@ class ClockClock24:
         self.__current_mode_night = -1
         self.night_on = False
 
-        self.__current_mode = 0
+        self.__current_mode = self.persistent.get_var("default mode")
         self.mode_change_handlers[self.__current_mode](True)  #start with mode
 
         hour, minute = self.rtc.get_hour_minute()
@@ -425,8 +434,16 @@ class ClockClock24:
                 self.persistent.set_var("night mode", night_mode)
                 
                 if __debug__:
-                    print("new night mode:", night_mode)
-            elif self.__settings_current_page == 5: # set one display mode
+                    print("new night mode:", night_mode),
+            elif self.__settings_current_page == 5: # set mode at startup
+                index = self.__defaultmode_allowed_modes.index(self.persistent.get_var("default mode"))
+                default_mode = self.__defaultmode_allowed_modes[(index + direction) % len(self.__defaultmode_allowed_modes)]
+                
+                self.persistent.set_var("default mode", default_mode)
+                
+                if __debug__:
+                    print("new default mode:", default_mode)
+            elif self.__settings_current_page == 6: # set one display mode
                 new_style = (self.persistent.get_var("one style") + direction) % 2
                 
                 self.persistent.set_var("one style", new_style)
@@ -435,7 +452,7 @@ class ClockClock24:
                 
                 if __debug__:
                     print("new one style:", new_style)
-            elif self.__settings_current_page == 6: # set eight display mode
+            elif self.__settings_current_page == 7: # set eight display mode
                 new_style = (self.persistent.get_var("eight style") + direction) % 3
                 
                 self.persistent.set_var("eight style", new_style)
@@ -467,6 +484,9 @@ class ClockClock24:
 
     def __settings_mode_night_disp(self):
         self.digit_display.display_mode(self.persistent.get_var("night mode"))
+        
+    def __settings_mode_default_disp(self):
+        self.digit_display.display_mode(self.persistent.get_var("default mode"))
         
     def __settings_one_style_disp(self):
         self.digit_display.display_mode(0)
