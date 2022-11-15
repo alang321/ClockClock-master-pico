@@ -83,8 +83,9 @@ class ClockClock24:
         self.animation_index = 0
 
         #asyncio
-        self.async_display_task = None  # currently running asynchronous task that has to be cancelled
-        self.async_mode_change_task = None  # currently running asynchronous task that has to be cancelled
+        self.async_display_task = None  # currently running asynchronous tasks that have to be cancelled
+        self.async_mode_change_task = None
+        self.async_setting_page_task = None
         self.movement_done_event = asyncio.Event()
         
         self.clock_modules = [ClockModule(i2c_bus_list[module_index], slave_adr_list[module_index], steps_full_rev) for module_index in range(len(slave_adr_list))]
@@ -106,16 +107,20 @@ class ClockClock24:
         self.current_speed = -1
         self.current_accel = -1
 
-        self.input_lock = False # gets turned on during a mode change being display
-        
         #settings
+        self.input_lock = False # gets turned on during a mode change being display, so settings button cant be pressed when effect is not yet visible
+        self.input_lock_2 = False # gets turned on during a page change being displayed, so settings button cant be pressed when effect not visible, but page can still be changed
+        
         self.settings_pages = {
             "change time": 0,
             "night start": 1,
             "night end": 2,
             "day mode": 3,
             "night mode": 4,
-            "one style": 5
+            "default mode": 5,
+            "one style": 6,
+            "eight style": 7,
+            "reset": 8
         }
         self.__settings_current_page = 0
         self.__settings_current_digit = 3
@@ -134,12 +139,10 @@ class ClockClock24:
         # night mode
         self.__current_mode_night = -1
         self.night_on = False
-
-        self.__current_mode = self.persistent.get_var("default mode")
-        self.mode_change_handlers[self.__current_mode](True)  #start with mode
-
-        hour, minute = self.rtc.get_hour_minute()
-        self.display_time(hour, minute)
+        
+        
+        self.__current_mode = None
+        self.set_mode(self.persistent.get_var("default mode"))
 
     async def run(self):
         if not self.movement_done_event.is_set():
@@ -169,18 +172,16 @@ class ClockClock24:
             self.async_display_task.cancel()
         if self.async_mode_change_task != None:
             self.async_mode_change_task.cancel()
-            
+        if self.async_setting_page_task != None: 
+            self.async_setting_page_task.cancel()
+
     def cancel_display_tasks(self):
         if self.async_display_task != None:
             self.async_display_task.cancel()
             
-    def cancel_mode_tasks(self):
-        if self.async_mode_change_task != None:
-            self.async_mode_change_task.cancel()
-
 #region mode change
 
-    async def set_mode(self, mode: int):
+    def set_mode(self, mode: int):
         self.cancel_tasks()
         self.async_mode_change_task = asyncio.create_task(self.__set_mode(mode))
 
@@ -189,7 +190,8 @@ class ClockClock24:
             print("New mode:", mode)
 
         self.input_lock = True
-        self.mode_change_handlers[self.__current_mode](False) #"destructor" of the old mode
+        if self.__current_mode != None:
+            self.mode_change_handlers[self.__current_mode](False) #"destructor" of the old mode
         self.__current_mode = mode
         self.time_handler = self.__no_new_time # an empty time handler so a new time doesnt interrupt the displaying of the current mode
         
@@ -201,13 +203,10 @@ class ClockClock24:
         self.movement_done_event.clear()
         await self.movement_done_event.wait()
         
-        await asyncio.sleep(2) #so digit is displayed for atleast a few seconds
+        await asyncio.sleep(2) #so digit is visible for a few seconds
         
-        self.mode_change_handlers[self.__current_mode](True) # specific initialisation of new mode after display of mode digit is done
         self.input_lock = False
-
-        hour, minute = self.rtc.get_hour_minute()
-        self.display_time(hour, minute)
+        self.mode_change_handlers[self.__current_mode](True) # specific initialisation of new mode after display of mode digit is done
 
     def get_mode(self):
         return self.__current_mode
@@ -217,43 +216,48 @@ class ClockClock24:
             self.set_speed_all(ClockClock24.stepper_speed_stealth)
             self.set_accel_all(ClockClock24.stepper_accel_stealth)
             self.time_handler = self.time_change_handlers[ClockClock24.modes["stealth"]]
+            self.alarm_flag = True # so a new time is displayed instead of the mode number even before next minute
     
     def __shortest_path(self, start):
         if start:
             self.set_speed_all(ClockClock24.stepper_speed_default)
             self.set_accel_all(ClockClock24.stepper_accel_default)
             self.time_handler = self.time_change_handlers[ClockClock24.modes["shortest path"]]
+            self.alarm_flag = True # so a new time is displayed instead of the mode number even before next minute
     
     def __visual(self, start):
         if start:
             self.set_speed_all(ClockClock24.stepper_speed_default)
             self.set_accel_all(ClockClock24.stepper_accel_default)
             self.time_handler = self.time_change_handlers[ClockClock24.modes["visual"]]
+            self.alarm_flag = True # so a new time is displayed instead of the mode number even before next minute
     
     def __analog(self, start):
         if start:
             self.set_speed_all(ClockClock24.stepper_speed_analog)
             self.set_accel_all(ClockClock24.stepper_accel_analog)
             self.time_handler = self.time_change_handlers[ClockClock24.modes["analog"]]
+            self.alarm_flag = True # so a new time is displayed instead of the mode number even before next minute
     
     def __night_mode(self, start):
         if start:
             self.time_handler = self.time_change_handlers[ClockClock24.modes["night mode"]]
-            self.night_on = True
             self.__current_mode_night = -1
-        else:
-            self.night_on = False
+            self.alarm_flag = True # so a new time is displayed instead of the mode number even before next minute
     
     def __settings(self, start):
         if start:
+            if __debug__:
+                print("starting settings mode")
             self.set_speed_all(ClockClock24.stepper_speed_fast)
             self.set_accel_all(ClockClock24.stepper_accel_fast)
             self.time_handler = self.time_change_handlers[ClockClock24.modes["settings"]]
-            self.__settings_current_page = 0
-            self.__settings_current_digit = 3
+            
             self.__persistent_data_changed = False
-            self.__settings_update_display()
+            self.async_setting_page_task = asyncio.create_task(self.__settings_set_page(0))
         else:
+            if __debug__:
+                print("ending settings mode")
             if self.__persistent_data_changed:
                 self.__persistent_data_changed = False
 
@@ -308,17 +312,17 @@ class ClockClock24:
             self.time_change_handlers[day_mode](hour, minute)
 
     def __stealth_new_time(self, hour: int, minute: int):
-        self.cancel_display_tasks()
+        self.cancel_tasks() # tasks cancelled since previous display could still be running if started
         digits = [hour//10, hour%10, minute//10, minute%10]
         self.digit_display.display_digits(digits, DigitDisplay.animations["stealth"])
         
     def __shortest_path_new_time(self, hour: int, minute: int):
-        self.cancel_display_tasks()
+        self.cancel_tasks()
         digits = [hour//10, hour%10, minute//10, minute%10]
         self.digit_display.display_digits(digits, DigitDisplay.animations["shortest path"])
         
     def __visual_new_time(self, hour: int, minute: int):
-        self.cancel_display_tasks()
+        self.cancel_tasks()
         digits = [hour//10, hour%10, minute//10, minute%10]
         
         if __debug__:
@@ -333,7 +337,7 @@ class ClockClock24:
             self.random_shuffle(self.visual_animation_ids)     
     
     def __analog_new_time(self, hour: int, minute: int):
-        self.cancel_display_tasks()
+        self.cancel_tasks()
         for stepper in self.minute_steppers:
             stepper.move_to(int(self.steps_full_rev/60 * minute), 0)
             
@@ -341,10 +345,12 @@ class ClockClock24:
             stepper.move_to(int(self.steps_full_rev/12 * (hour%12 + minute/60)), 0)
     
     def __settings_new_time(self, hour: int, minute: int):
+        self.cancel_tasks()
         if self.__settings_do_display_new_time[self.__settings_current_page]:
             self.__settings_update_display()
         
     def __no_new_time(self, hour: int, minute: int):
+        # here tasks are not cancelled since this could be called during set mode
         if __debug__:
             print("New time not displayed")
         return
@@ -355,16 +361,29 @@ class ClockClock24:
 
     def settings_next_page(self):
         if not self.input_lock:
-            self.__settings_current_page = (self.__settings_current_page + 1) % self.__settings_pagecount
-            if __debug__:
-                print("settings next page:", self.__settings_current_page)
+            self.cancel_tasks()
+            self.async_setting_page_task = asyncio.create_task(self.__settings_set_page((self.__settings_current_page + 1) % self.__settings_pagecount))
 
-            self.__settings_current_digit = 3
-            self.__settings_display_funcs[self.__settings_current_page]()
-            self.__settings_update_display()
+    async def __settings_set_page(self, pagenum):
+        self.__settings_current_page = pagenum
+        if __debug__:
+            print("settings set page:", self.__settings_current_page)
+
+        #page number animation
+        self.input_lock_2 = True
+        self.time_handler = self.__no_new_time # an empty time handler so a new time doesnt interrupt the displaying of the current mode
+        self.digit_display.display_mode(self.__settings_current_page, True)
+        self.movement_done_event.clear() # wait until movement is completed
+        await self.movement_done_event.wait()
+        await asyncio.sleep(1) #so digit is visible for a bit
+        self.time_handler = self.time_change_handlers[self.__current_mode]
+        self.input_lock_2 = False
+        
+        self.__settings_current_digit = 3
+        self.__settings_update_display()
 
     def settings_next_digit(self):
-        if not self.input_lock:
+        if not self.input_lock and not self.input_lock_2:
             if self.__settings_current_page == 0 or self.__settings_current_page == 1 or self.__settings_current_page == 2:
                 self.__settings_current_digit = (self.__settings_current_digit - 1) % 4
                 if __debug__:
@@ -376,7 +395,7 @@ class ClockClock24:
                     self.minute_steppers[clk_index].wiggle(distance, 1)
 
     def settings_incr_decr(self, direction):
-        if not self.input_lock:
+        if not self.input_lock and not self.input_lock_2:
             if __debug__:
                 print("settings time increment direction ", direction)
                 

@@ -141,7 +141,7 @@ class DigitDisplay:
                 self.hour_steppers[clk_index].move_to_extra_revs(self.__get_digit_pos_abs(digit)[0][sub_index], direction, extra_revs)
                 self.minute_steppers[clk_index].move_to_extra_revs(self.__get_digit_pos_abs(digit)[1][sub_index], direction, extra_revs)
                 
-    def display_mode(self, mode_id):
+    def display_mode(self, mode_id, left_align=False):
         mode_id += 1
         mode_string = str(mode_id)
         digit_count = len(str(mode_string))
@@ -150,7 +150,13 @@ class DigitDisplay:
         
         new_positions_0 = [default_pos] * 24
         new_positions_1 = [default_pos] * 24
-        for digit_id, field in enumerate(range(4 - digit_count, 4)):
+        
+        if left_align:
+            field_ids = range(0, digit_count)
+        else:
+            field_ids = range(4 - digit_count, 4)
+            
+        for digit_id, field in enumerate(field_ids):
             digit = int(mode_string[digit_id])
                 
             for sub_index, clk_index in enumerate(self.digit_display_indices[field]):

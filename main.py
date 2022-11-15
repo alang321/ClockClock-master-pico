@@ -7,7 +7,7 @@ from OneButton import OneButton
 # button handlers
 def cycle_mode(pin):
     curr_mode = clockclock.get_mode()
-    asyncio.create_task(clockclock.set_mode((curr_mode + 1) % len(ClockClock24.modes)))
+    clockclock.set_mode((curr_mode + 1) % len(ClockClock24.modes))
         
 def increment_digit(pin):
     if not clockclock.input_lock:
