@@ -1,7 +1,172 @@
 from struct import pack
 import machine
 
-#region clock moudle
+i2c1 = machine.I2C(1, sda=machine.Pin(14), scl=machine.Pin(3), freq=100000)
+i2c0 = machine.I2C(0, sda=machine.Pin(16), scl=machine.Pin(17), freq=100000)
+
+# module addresses  (pcb containing 4 steppers and a mcu, stm32f103 in this case)
+module_i2c_adr = [12, 13, # the adress of the module starting top left row first
+                  14, 15, 
+                  16, 17]
+
+module_i2c_bus = [i2c1, i2c0, # the bus on which the module is
+                  i2c1, i2c0, 
+                  i2c1, i2c0]
+
+clock_modules = [ClockModule(i2c_bus_list[module_index], slave_adr_list[module_index], steps_full_rev) for module_index in range(len(slave_adr_list))]
+    
+minute_steppers = [stepper for stepper_list in (module.minute_steppers for module in clock_modules) for stepper in stepper_list]
+hour_steppers = [stepper for stepper_list in (module.hour_steppers for module in clock_modules) for stepper in stepper_list]
+    
+
+
+#region commands
+
+def enable_disable_all(enable_disable: bool):
+    for module in clock_modules:
+        module.enable_disable_driver_module(enable_disable)
+
+def is_running() -> bool: #returns True if any stepper is running
+    for module in clock_modules:
+        if module.is_running_module():
+            return True
+    
+    return False
+
+def set_speed_all(speed: int):
+    current_speed = speed
+    for module in clock_modules:
+        module.all_steppers.set_speed(speed)
+
+def set_accel_all(accel: int):
+    current_accel = accel
+    for module in clock_modules:
+        module.all_steppers.set_accel(accel)
+
+def move_to_all(position: int, direction = 0):
+    for module in clock_modules:
+        for stepper in module.steppers:
+            stepper.current_target_pos = position
+            
+        module.all_steppers.move_to(position, direction)
+
+def move_to_extra_revs_all(position: int, direction: int, extra_revs: int):
+    for module in clock_modules:
+        for stepper in module.steppers:
+            stepper.current_target_pos = position
+            
+        module.all_steppers.move_to_extra_revs(position, direction, extra_revs)
+
+def moveTo_min_steps_all(position: int, direction: int, min_steps: int): 
+    for module in clock_modules:
+        for stepper in module.steppers:
+            stepper.current_target_pos = position
+            
+        module.all_steppers.move_to_min_steps(position, direction, min_steps)
+
+def move_all(distance: int, direction: int):
+    for module in clock_modules:
+        for stepper in module.steppers:
+            stepper.current_target_pos = (distance * direction) % module.steps_full_rev
+            
+        module.all_steppers.move(distance, direction)
+    
+def stop_all():
+    for module in clock_modules:
+        for stepper in module.steppers:
+            stepper.current_target_pos = -1
+            
+        module.all_steppers.stop()
+
+# control hour steppers
+def set_speed_hour(speed: int):
+    for module in clock_modules:
+        module.all_hour_steppers.set_speed(speed)
+
+def set_accel_hour(accel: int):
+    for module in clock_modules:
+        module.all_hour_steppers.set_accel(accel)
+
+def move_to_hour(position: int, direction = 0):
+    for module in clock_modules:
+        for stepper in module.hour_steppers:
+            stepper.current_target_pos = position
+            
+        module.all_hour_steppers.move_to(position, direction)
+
+def move_to_extra_revs_hour(position: int, direction: int, extra_revs: int):
+    for module in clock_modules:
+        for stepper in module.hour_steppers:
+            stepper.current_target_pos = position
+            
+        module.all_hour_steppers.move_to_extra_revs(position, direction, extra_revs)
+
+def moveTo_min_steps_hour(position: int, direction: int, min_steps: int): 
+    for module in clock_modules:
+        for stepper in module.hour_steppers:
+            stepper.current_target_pos = position
+            
+        module.all_hour_steppers.move_to_min_steps(position, direction, min_steps)
+
+def move_hour(distance: int, direction: int):
+    for module in clock_modules:
+        for stepper in module.hour_steppers:
+            stepper.current_target_pos = (distance * direction) % module.steps_full_rev
+            
+        module.all_hour_steppers.move(distance, direction)
+    
+def stop_hour():
+    for module in clock_modules:
+        for stepper in module.hour_steppers:
+            stepper.current_target_pos = -1
+            
+        module.all_hour_steppers.stop()
+
+# control minute steppers
+def set_speed_minute(speed: int):
+    for module in clock_modules:
+        module.all_minute_steppers.set_speed(speed)
+
+def set_accel_minute(accel: int):
+    for module in clock_modules:
+        module.all_minute_steppers.set_accel(accel)
+
+def move_to_minute(position: int, direction = 0):
+    for module in clock_modules:
+        for stepper in module.minute_steppers:
+            stepper.current_target_pos = position
+            
+        module.all_minute_steppers.move_to(position, direction)
+
+def move_to_extra_revs_minute(position: int, direction: int, extra_revs: int):
+    for module in clock_modules:
+        for stepper in module.minute_steppers:
+            stepper.current_target_pos = position
+            
+        module.all_minute_steppers.move_to_extra_revs(position, direction, extra_revs)
+
+def moveTo_min_steps_minute(position: int, direction: int, min_steps: int): 
+    for module in clock_modules:
+        for stepper in module.minute_steppers:
+            stepper.current_target_pos = position
+            
+        module.all_minute_steppers.move_to_min_steps(position, direction, min_steps)
+
+def move_minute(distance: int, direction: int):
+    for module in clock_modules:
+        for stepper in module.minute_steppers:
+            stepper.current_target_pos = (distance * direction) % module.steps_full_rev
+            
+        module.all_minute_steppers.move(distance, direction)
+    
+def stop_minute():
+    for module in clock_modules:
+        for stepper in module.minute_steppers:
+            stepper.current_target_pos = -1
+            
+        module.all_minute_steppers.stop()
+
+#endregion
 
 class ClockModule: # module for 1 of the 6 pcbs in the clock
     cmd_id = {
