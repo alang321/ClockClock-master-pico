@@ -404,7 +404,7 @@ class ClockClock24:
         self.digit_display.display_mode(self.__settings_current_page, True)
         self.movement_done_event.clear() # wait until movement is completed
         await self.movement_done_event.wait()
-        await asyncio.sleep(.7) #so digit is visible for a bit
+        await asyncio.sleep(.8) #so digit is visible for a bit
         self.time_handler = self.time_change_handlers[self.__current_mode]
         self.input_lock_2 = False
         
@@ -420,7 +420,7 @@ class ClockClock24:
                 if __debug__:
                     print("settings next digit:", self.__settings_current_digit)
 
-                distance = int(self.steps_full_rev * 0.045)
+                distance = int(self.steps_full_rev * 0.025)
                 for clk_index in self.digit_display.digit_display_indices[self.__settings_current_digit]:
                     self.hour_steppers[clk_index].wiggle(distance, 1)
                     self.minute_steppers[clk_index].wiggle(distance, 1)

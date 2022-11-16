@@ -162,10 +162,8 @@ class DigitDisplay:
             for sub_index, clk_index in enumerate(self.digit_display_indices[field]):
                 new_positions_0[clk_index] = self.__get_digit_pos_abs(digit)[0][sub_index]
                 new_positions_1[clk_index] = self.__get_digit_pos_abs(digit)[1][sub_index]
-
-        for clk_index in range(24):
-            self.hour_steppers[clk_index].move_to(new_positions_0[clk_index], 0)
-            self.minute_steppers[clk_index].move_to(new_positions_1[clk_index], 0)
+                
+        self.__new_pose_stealth(new_positions_0, new_positions_1)
                 
     def display_digits(self, digits, animation_id = 0):
         """Display all 4 digits simultaneously on the clock
@@ -226,17 +224,24 @@ class DigitDisplay:
             h_pos = h.current_target_pos
             
             #if both steppers are equal to either a or b dont do anything
-            if (m_pos == a_pos and h_pos == b_pos) or (m_pos == b_pos and h_pos == a_pos):
-                continue
-            #if one is equal move the other, minute priority because hour is usually quieter
-            elif m_pos == a_pos:
+            if (m_pos == a_pos and h_pos == b_pos):
                 h.move_to(b_pos, 0)
+                m.move_to(a_pos, 0)
+            elif (m_pos == b_pos and h_pos == a_pos):
+                h.move_to(a_pos, 0)
+                m.move_to(b_pos, 0)
+            elif m_pos == a_pos: #if one is equal move the other, minute priority because hour is usually quieter for some reason
+                h.move_to(b_pos, 0)
+                m.move_to(a_pos, 0)
             elif m_pos == b_pos:
                 h.move_to(a_pos, 0)
+                m.move_to(b_pos, 0)
             elif h_pos == a_pos:
                 m.move_to(b_pos, 0)
+                h.move_to(a_pos, 0)
             elif h_pos == b_pos:
                 m.move_to(a_pos, 0)
+                h.move_to(b_pos, 0)
             #if neither one is equal move both
             else:
                 m.move_to(a_pos, 0)
