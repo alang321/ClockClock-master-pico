@@ -27,7 +27,7 @@ def cycle_field(pin):
 def cycle_page(pin):
     if not clockclock.input_lock:
         if clockclock.get_mode() == ClockClock24.modes["settings"]:
-            clockclock.settings_next_page()
+            clockclock.settings_change_page(1)
 
 #main loop
 async def main_loop():

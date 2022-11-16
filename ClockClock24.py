@@ -56,7 +56,8 @@ class ClockClock24:
                    PersistentStorage.persistent_var("day mode", ClockClock24.modes["visual"], lambda a : True if a in self.__nightmode_allowed_modes else False),
                    PersistentStorage.persistent_var("one style", 0, lambda a : True if a in [0, 1] else False),
                    PersistentStorage.persistent_var("eight style", 0, lambda a : True if a in [0, 1, 2] else False),
-                   PersistentStorage.persistent_var("default mode", ClockClock24.modes["night mode"], lambda a : True if a in self.__defaultmode_allowed_modes else False)]
+                   PersistentStorage.persistent_var("default mode", ClockClock24.modes["night mode"], lambda a : True if a in self.__defaultmode_allowed_modes else False),
+                   PersistentStorage.persistent_var("12 hour format", 0, lambda a : True if a in [0, 1] else False)] # 0 for 24 hour format, 1 for twelve hour formaty
         
         self.persistent = PersistentStorage("settings", var_lst)
         
@@ -113,33 +114,50 @@ class ClockClock24:
         
         self.settings_pages = {
             "change time": 0,
-            "night start": 1,
-            "night end": 2,
-            "day mode": 3,
-            "night mode": 4,
-            "default mode": 5,
-            "one style": 6,
-            "eight style": 7,
-            "reset": 8
+            "24/12": 1,
+            "default mode": 2,
+            "night end": 3,
+            "night start": 4,
+            "day mode": 5,
+            "night mode": 6,
+            "one style": 7,
+            "eight style": 8,
+            "reset": 9
         }
+        
         self.__settings_current_page = 0
         self.__settings_current_digit = 3
-        self.__settings_display_funcs = [self.__settings_change_time_disp,
-                                         self.__settings_night_start_disp,
+        self.__settings_display_funcs = [self.__settings_time_disp,
+                                         self.__settings_time_format_disp,
+                                         self.__settings_mode_default_disp,
                                          self.__settings_night_end_disp,
+                                         self.__settings_night_start_disp,
                                          self.__settings_mode_day_disp,
                                          self.__settings_mode_night_disp,
-                                         self.__settings_mode_default_disp,
                                          self.__settings_one_style_disp,
-                                         self.__settings_eight_style_disp]
-        self.__settings_do_display_new_time = [True, False, False, False, False, False, False, False]
+                                         self.__settings_eight_style_disp,
+                                         self.__settings_reset_disp]
+        
+        self.__settings_modify_val_funcs   = [self.__settings_time_mod,
+                                             self.__settings_time_format_mod,
+                                             self.__settings_mode_default_mod,
+                                             self.__settings_night_end_mod,
+                                             self.__settings_night_start_mod,
+                                             self.__settings_mode_day_mod,
+                                             self.__settings_mode_night_mod,
+                                             self.__settings_one_style_mod,
+                                             self.__settings_eight_style_mod,
+                                             self.__settings_reset_mod]
+        
+        self.__settings_do_display_new_time = [True, False, False, False, False, False, False, False, False, False]
         self.__settings_pagecount = len(self.__settings_display_funcs)
         self.__persistent_data_changed = False
+        
+        self.__reset_settings = False
         
         # night mode
         self.__current_mode_night = -1
         self.night_on = False
-        
         
         self.__current_mode = None
         self.set_mode(self.persistent.get_var("default mode"))
@@ -151,7 +169,7 @@ class ClockClock24:
 
         if self.alarm_flag:
             self.alarm_flag = False
-            hour, minute = self.rtc.get_hour_minute()
+            hour, minute = self.rtc.get_hour_minute(bool(self.persistent.get_var("12 hour format")))
             self.display_time(hour, minute)
 
         await asyncio.sleep(0)
@@ -164,6 +182,7 @@ class ClockClock24:
     def display_time(self, hour: int, minute: int):
         if __debug__:
             print("New time displayed:", hour, minute)
+            print('Twelve hour format:', bool(self.persistent.get_var("12 hour format")))
 
         self.time_handler(hour, minute)
 
@@ -203,7 +222,7 @@ class ClockClock24:
         self.movement_done_event.clear()
         await self.movement_done_event.wait()
         
-        await asyncio.sleep(2) #so digit is visible for a few seconds
+        await asyncio.sleep(1.2) #so digit is visible for a few seconds
         
         self.input_lock = False
         self.mode_change_handlers[self.__current_mode](True) # specific initialisation of new mode after display of mode digit is done
@@ -258,6 +277,10 @@ class ClockClock24:
         else:
             if __debug__:
                 print("ending settings mode")
+                
+            if self.__reset_settings:
+                self.reset_settings()
+                
             if self.__persistent_data_changed:
                 self.__persistent_data_changed = False
 
@@ -281,9 +304,12 @@ class ClockClock24:
         night_mode = self.persistent.get_var("night mode")
         day_mode = self.persistent.get_var("day mode")
         
+        #ugly but im lazy, so day/night determination works
+        hour_24, minute_24 = self.rtc.get_hour_minute(False) 
+        
         start_time_min = night_start[0] * 60 + night_start[1]
         end_time_min = night_end[0] * 60 + night_end[1]
-        curr_time_min = hour * 60 + minute
+        curr_time_min = hour_24 * 60 + minute_24
 
         if start_time_min < end_time_min:
             is_night = (start_time_min <= curr_time_min <= end_time_min)
@@ -359,15 +385,18 @@ class ClockClock24:
 
 #region settings
 
-    def settings_next_page(self):
+    def settings_change_page(self, direction):
         if not self.input_lock:
             self.cancel_tasks()
-            self.async_setting_page_task = asyncio.create_task(self.__settings_set_page((self.__settings_current_page + 1) % self.__settings_pagecount))
+            self.async_setting_page_task = asyncio.create_task(self.__settings_set_page((self.__settings_current_page + direction) % self.__settings_pagecount))
 
     async def __settings_set_page(self, pagenum):
         self.__settings_current_page = pagenum
         if __debug__:
             print("settings set page:", self.__settings_current_page)
+            
+        if self.__reset_settings:
+            self.reset_settings()
 
         #page number animation
         self.input_lock_2 = True
@@ -375,7 +404,7 @@ class ClockClock24:
         self.digit_display.display_mode(self.__settings_current_page, True)
         self.movement_done_event.clear() # wait until movement is completed
         await self.movement_done_event.wait()
-        await asyncio.sleep(1) #so digit is visible for a bit
+        await asyncio.sleep(.7) #so digit is visible for a bit
         self.time_handler = self.time_change_handlers[self.__current_mode]
         self.input_lock_2 = False
         
@@ -384,7 +413,9 @@ class ClockClock24:
 
     def settings_next_digit(self):
         if not self.input_lock and not self.input_lock_2:
-            if self.__settings_current_page == 0 or self.__settings_current_page == 1 or self.__settings_current_page == 2:
+            if (self.__settings_current_page == self.settings_pages["change time"]
+                    or self.__settings_current_page == self.settings_pages["night end"]
+                    or self.__settings_current_page == self.settings_pages["night start"]):
                 self.__settings_current_digit = (self.__settings_current_digit - 1) % 4
                 if __debug__:
                     print("settings next digit:", self.__settings_current_digit)
@@ -393,100 +424,132 @@ class ClockClock24:
                 for clk_index in self.digit_display.digit_display_indices[self.__settings_current_digit]:
                     self.hour_steppers[clk_index].wiggle(distance, 1)
                     self.minute_steppers[clk_index].wiggle(distance, 1)
-
+                    
+    
     def settings_incr_decr(self, direction):
         if not self.input_lock and not self.input_lock_2:
             if __debug__:
                 print("settings time increment direction ", direction)
                 
             self.__persistent_data_changed = True
-
-            if self.__settings_current_page == 0: # change time page
-                time_change_val = [[10, 0], [1, 0], [0, 10], [0, 1]]
-                curr_hour, curr_min = self.rtc.get_hour_minute()
-                time = self.__settings_incr_decr_time(curr_hour, curr_min,
-                                                      time_change_val[self.__settings_current_digit][0] * direction,
-                                                      time_change_val[self.__settings_current_digit][1] * direction)
-
-                if __debug__:
-                    print("incrementing by: hour:", time_change_val[self.__settings_current_digit][0] * direction, "minutes:", time_change_val[self.__settings_current_digit][1] * direction)
-                    print("old time:", self.rtc.get_hour_minute())
-                    
-                self.rtc.set_hour_minute(time[0], time[1])
-                
-                if __debug__:
-                    print("new time:", self.rtc.get_hour_minute())
-            elif self.__settings_current_page == 1: # change night start time page
-                time_change_val = [[10, 0], [1, 0], [0, 10], [0, 1]]
-                night_start = self.persistent.get_var("night start")
-                night_start_new = self.__settings_incr_decr_time(night_start[0], night_start[1],
-                                                             time_change_val[self.__settings_current_digit][0] * direction,
-                                                             time_change_val[self.__settings_current_digit][1] * direction)
-                
-                self.persistent.set_var("night start", night_start_new)
-                
-                if __debug__:
-                    print("new start time:", night_start_new)
-            elif self.__settings_current_page == 2: # change night end time page
-                time_change_val = [[10, 0], [1, 0], [0, 10], [0, 1]]
-                night_end = self.persistent.get_var("night end")
-                night_end_new = self.__settings_incr_decr_time(night_end[0], night_end[1],
-                                                                time_change_val[self.__settings_current_digit][0] * direction,
-                                                                time_change_val[self.__settings_current_digit][1] * direction)
-                
-                self.persistent.set_var("night end", night_end_new)
-                
-                if __debug__:
-                    print("new end time:", night_end_new)
-            elif self.__settings_current_page == 3: # set mode during day
-                index = self.__nightmode_allowed_modes.index(self.persistent.get_var("day mode"))
-                day_mode = self.__nightmode_allowed_modes[(index + direction) % len(self.__nightmode_allowed_modes)]
-                
-                self.persistent.set_var("day mode", day_mode)
-                
-                if __debug__:
-                    print("new day mode:", day_mode)
-            elif self.__settings_current_page == 4: # set mode during night
-                index = self.__nightmode_allowed_modes.index(self.persistent.get_var("night mode"))
-                night_mode = self.__nightmode_allowed_modes[(index + direction) % len(self.__nightmode_allowed_modes)]
-                
-                self.persistent.set_var("night mode", night_mode)
-                
-                if __debug__:
-                    print("new night mode:", night_mode),
-            elif self.__settings_current_page == 5: # set mode at startup
-                index = self.__defaultmode_allowed_modes.index(self.persistent.get_var("default mode"))
-                default_mode = self.__defaultmode_allowed_modes[(index + direction) % len(self.__defaultmode_allowed_modes)]
-                
-                self.persistent.set_var("default mode", default_mode)
-                
-                if __debug__:
-                    print("new default mode:", default_mode)
-            elif self.__settings_current_page == 6: # set one display mode
-                new_style = (self.persistent.get_var("one style") + direction) % 2
-                
-                self.persistent.set_var("one style", new_style)
-                
-                self.digit_display.number_style_options[1] = new_style
-                
-                if __debug__:
-                    print("new one style:", new_style)
-            elif self.__settings_current_page == 7: # set eight display mode
-                new_style = (self.persistent.get_var("eight style") + direction) % 3
-                
-                self.persistent.set_var("eight style", new_style)
-                
-                self.digit_display.number_style_options[8] = new_style
-                
-                if __debug__:
-                    print("new eight style:", new_style)
+            
+            self.__settings_modify_val_funcs[self.__settings_current_page](direction)
             
             self.__settings_update_display()
+            
+#region per page up down buttons
+                    
+    def __settings_time_mod(self, direction):
+        time_change_val = [[10, 0], [1, 0], [0, 10], [0, 1]]
+        curr_hour, curr_min = self.rtc.get_hour_minute()
+        time = self.__settings_incr_decr_time(curr_hour, curr_min,
+                                              time_change_val[self.__settings_current_digit][0] * direction,
+                                              time_change_val[self.__settings_current_digit][1] * direction)
+
+        if __debug__:
+            print("incrementing by: hour:", time_change_val[self.__settings_current_digit][0] * direction, "minutes:", time_change_val[self.__settings_current_digit][1] * direction)
+            print("old time:", self.rtc.get_hour_minute())
+            
+        self.rtc.set_hour_minute(time[0], time[1])
+        
+        if __debug__:
+            print("new time:", self.rtc.get_hour_minute())
+        
+    def __settings_time_format_mod(self, direction):
+        new_time_format = (self.persistent.get_var("12 hour format") + direction) % 2
+         
+        self.persistent.set_var("12 hour format", new_time_format)
+        
+        if __debug__:
+            print("new:  12 hour format = ", bool(new_time_format))
+        
+    def __settings_mode_default_mod(self, direction):
+        index = self.__defaultmode_allowed_modes.index(self.persistent.get_var("default mode"))
+        default_mode = self.__defaultmode_allowed_modes[(index + direction) % len(self.__defaultmode_allowed_modes)]
+        
+        self.persistent.set_var("default mode", default_mode)
+        
+        if __debug__:
+            print("new default mode:", default_mode)
+        
+    def __settings_night_end_mod(self, direction):
+        time_change_val = [[10, 0], [1, 0], [0, 10], [0, 1]]
+        night_end = self.persistent.get_var("night end")
+        night_end_new = self.__settings_incr_decr_time(night_end[0], night_end[1],
+                                                        time_change_val[self.__settings_current_digit][0] * direction,
+                                                        time_change_val[self.__settings_current_digit][1] * direction)
+        
+        self.persistent.set_var("night end", night_end_new)
+        
+        if __debug__:
+            print("new day start time:", night_end_new)
+        
+    def __settings_night_start_mod(self, direction):
+        time_change_val = [[10, 0], [1, 0], [0, 10], [0, 1]]
+        night_start = self.persistent.get_var("night start")
+        night_start_new = self.__settings_incr_decr_time(night_start[0], night_start[1],
+                                                     time_change_val[self.__settings_current_digit][0] * direction,
+                                                     time_change_val[self.__settings_current_digit][1] * direction)
+        
+        self.persistent.set_var("night start", night_start_new)
+        
+        if __debug__:
+            print("new night start time:", night_start_new)
+        
+    def __settings_mode_day_mod(self, direction):
+        index = self.__nightmode_allowed_modes.index(self.persistent.get_var("day mode"))
+        day_mode = self.__nightmode_allowed_modes[(index + direction) % len(self.__nightmode_allowed_modes)]
+        
+        self.persistent.set_var("day mode", day_mode)
+        
+        if __debug__:
+            print("new day mode:", day_mode)
+        
+    def __settings_mode_night_mod(self, direction):
+        index = self.__nightmode_allowed_modes.index(self.persistent.get_var("night mode"))
+        night_mode = self.__nightmode_allowed_modes[(index + direction) % len(self.__nightmode_allowed_modes)]
+        
+        self.persistent.set_var("night mode", night_mode)
+        
+        if __debug__:
+            print("new night mode:", night_mode)
+        
+    def __settings_one_style_mod(self, direction):
+        new_style = (self.persistent.get_var("one style") + direction) % 2
+                
+        self.persistent.set_var("one style", new_style)
+        
+        self.digit_display.number_style_options[1] = new_style
+        
+        if __debug__:
+            print("new one style:", new_style)
+        
+    def __settings_eight_style_mod(self, direction):
+        new_style = (self.persistent.get_var("eight style") + direction) % 3
+                
+        self.persistent.set_var("eight style", new_style)
+        
+        self.digit_display.number_style_options[8] = new_style
+        
+        if __debug__:
+            print("new eight style:", new_style)
+        
+    def __settings_reset_mod(self, direction):
+        if self.__reset_settings:
+            if __debug__:
+                print("no reset")
+            self.__reset_settings = False
+        else:
+            if __debug__:
+                print("reset")
+            self.__reset_settings = True
+        
+#endregion
 
     def __settings_update_display(self):
         self.__settings_display_funcs[self.__settings_current_page]()
 
-    def __settings_change_time_disp(self):
+    def __settings_time_disp(self):
         hour, minute = self.rtc.get_hour_minute()
         self.__settings_display_time(hour, minute)
 
@@ -517,6 +580,20 @@ class ClockClock24:
         self.cancel_display_tasks()
         digits = [hour // 10, hour % 10, minute // 10, minute % 10]
         self.digit_display.display_digits(digits, DigitDisplay.animations["shortest path"])
+        
+    def __settings_time_format_disp(self):
+        if bool(self.persistent.get_var("12 hour format")):
+            self.digit_display.display_mode(11)
+        else:
+            self.digit_display.display_mode(23)
+        
+    def __settings_reset_disp(self):
+        if self.__reset_settings:
+            self.move_to_hour(int(self.steps_full_rev * 0.125))
+            self.move_to_minute(int(self.steps_full_rev * 0.625))
+        else:
+            self.move_to_hour(int(self.steps_full_rev * 0.25))
+            self.move_to_minute(int(self.steps_full_rev * 0.75))
 
     def __settings_incr_decr_time(self, hour, minute, h_incr, m_incr):
         # combine times
@@ -538,6 +615,18 @@ class ClockClock24:
 
         return [combined_hour, combined_minute]
 
+    def reset_settings(self): 
+        if __debug__:
+            print("resetting all settings and time")   
+        self.__persistent_data_changed = False
+        self.__reset_settings = False
+        self.rtc.set_hour_minute(0, 0)
+        self.persistent.reset_flash()
+
+        self.digit_display.number_style_options[1] = self.persistent.get_var("one style")
+        self.digit_display.number_style_options[8] = self.persistent.get_var("eight style")
+        self.alarm_flag = True
+    
 #endregion
 
 #region commands

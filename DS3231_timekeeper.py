@@ -26,12 +26,18 @@ class DS3231_timekeeper:
     def set_datetime(self, datetime):
         self.rtc.datetime(datetime)
  
-    def get_hour_minute(self):
+    def get_hour_minute(self, twelve=False):
         current_time = self.get_datetime()
-        
+
         hour = current_time.hour
         minute = current_time.minute
-        
+
+        if twelve:
+            if hour == 0:
+                hour += 12
+            elif 13 <= hour <= 24:
+                hour -= 12
+
         return hour, minute
     
     def set_hour_minute(self, hour, minute):
