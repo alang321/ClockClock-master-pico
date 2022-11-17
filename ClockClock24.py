@@ -71,7 +71,7 @@ class ClockClock24:
                                      DigitDisplay.animations["opposing pointers"],
                                      DigitDisplay.animations["focus"],
                                      DigitDisplay.animations["opposites"],
-                                     DigitDisplay.animations["equipotential"],
+                                     #DigitDisplay.animations["equipotential"],
                                      DigitDisplay.animations["speedy clock"],
                                      DigitDisplay.animations["random"],
                                      DigitDisplay.animations["opposing wave"],

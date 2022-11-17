@@ -349,8 +349,9 @@ class DigitDisplay:
         # left is poitive y axis
         # origin is at the center of top left clock
         #center, top left, bottom left, bottom right, top right
-        points = [[-1, -3.5], [-1, -3.5], [0.5, 0.5], [-2.5, -7.5]]  #in units of clock spacing (10cm in this case)
-        point = random.choice(points)
+        #points = [[-1, -3.5], [-1, -3.5], [0.5, -3.5], [-2.5, -3.5]] 
+        #point = random.choice(points)
+        point = [-1, -3.5]
         
         for clk_index in range(24):
             # this assumes equal vertical and horizontal clock spacing, which is the case obv
@@ -720,7 +721,7 @@ class DigitDisplay:
         # coordinate system: origin at center of clockclock, y+ up x+ right
         # center of clock clock
         
-        point = random.choice([[0, 0], [0, 20], [40, 20]]) 
+        point = random.choice([[0, 0], [0, 0], [0, 20], [9, -20]]) 
         x_cc = point[0]
         y_cc = point[1]
         
@@ -817,15 +818,10 @@ class DigitDisplay:
         await self.clockclock.movement_done_event.wait()
         
         
-        for index, clk_lst in enumerate(self.column_indices):
-            if (index % 2) == 0:
-                direction = 1
-            else:
-                direction = -1
-                
-            for clk_index in clk_lst:
-                self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], direction, extra_revs)
-                self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], direction, extra_revs)
+        direction = 1
+        for clk_index in range(24):
+            self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], direction, extra_revs)
+            self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], direction, extra_revs)
                     
     async def new_pose_small_circles(self, new_positions_h, new_positions_m):
         """small circles made of 4 clocks each
