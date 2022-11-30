@@ -15,7 +15,7 @@ class ClockClock24:
     stepper_accel_fast = 450
     
     #normal speed used in most modes
-    stepper_speed_defaufrom machine import Timerlt = 585
+    stepper_speed_default = 585
     stepper_accel_default = 210
     
     #used in stealth mode
@@ -36,7 +36,7 @@ class ClockClock24:
       "settings": 6,
       }
     
-    def __init__(self, slave_adr_list, i2c_bus_list, clk_i2c_bus, clk_interrupt_pin, ntp_module=None, steps_full_rev=4320):
+    def __init__(self, slave_adr_list, i2c_bus_list, clk_i2c_bus, clk_interrupt_pin, ntp_module=None, steps_full_rev=4320, ntp_poll_freq_m=60):
         # persistent data
         self.__nightmode_allowed_modes = [ClockClock24.modes["visual"],
                                           ClockClock24.modes["shortest path"],
@@ -86,8 +86,8 @@ class ClockClock24:
         self.animation_index = 0
         
         self.ntp_module = ntp_module
-        self.ntp_poll_freq_m = 3 #how often ntp is polled, should be more than the timeout
-        self.ntp_timeout_s = 120 #for how long the ntp mopdule tries to retrieve the ntp
+        self.ntp_poll_freq_m = ntp_poll_freq_m #how often ntp is polled, should be more than the timeout
+        self.ntp_timeout_s = 180 #for how long the ntp mopdule tries to retrieve the ntp
         self.ntp_validity_s = self.ntp_timeout_s #for how long the ntp stays valid in the ntp module after receving a ntp time
         self.async_ntp_task = None
         self.ntp_timer = Timer()
@@ -283,7 +283,7 @@ class ClockClock24:
         if start:
             if __debug__:
                 print("starting settings mode")
-            self.stop_ntp():
+            self.stop_ntp()
                 
             self.set_speed_all(ClockClock24.stepper_speed_fast)
             self.set_accel_all(ClockClock24.stepper_accel_fast)
@@ -295,8 +295,9 @@ class ClockClock24:
             if __debug__:
                 print("ending settings mode")
                 
-            self.ntp_module.stop_hotspot();
-            self.start_ntp():
+            if self.ntp_module != None:
+                self.ntp_module.stop_hotspot()
+            self.start_ntp()
                 
             if self.__reset_settings:
                 self.reset_settings()
@@ -417,6 +418,7 @@ class ClockClock24:
             if self.persistent.get_var("NTP enabled"):
                 if not self.timer_running:
                     self.__start_ntp_timer()
+                    self.__ntp_callback()
             else:
                 if self.timer_running:
                     self.__stop_ntp_timer()
@@ -424,34 +426,34 @@ class ClockClock24:
     def __start_ntp_timer(self):
         self.timer_running = True
         if __debug__:
-            print("Starting NTP Timer:", self.__settings_current_page)
+            print("Starting NTP Timer")
         self.ntp_timer.init(period=int(self.ntp_poll_freq_m*60*1000), mode=Timer.PERIODIC, callback=self.__ntp_callback)
         
     def __stop_ntp_timer(self):
         self.timer_running = False
         if __debug__:
-            print("Stopping NTP Timer:")
+            print("Stopping NTP Timer")
         self.ntp_timer.deinit()
         
-    def __ntp_callback(self):
+    def __ntp_callback(self, t=0):
         if __debug__:
-            print("Polling NTP Time:")
+            print("Polling NTP Time")
         if self.async_ntp_task != None:
             self.async_ntp_task.cancel()
             
-        self.async_ntp_task = asyncio.create_task(self.ntp_get_time())
+        self.async_ntp_task = asyncio.create_task(self.__ntp_get_time())
 
     async def __ntp_get_time(self):
-        time_valid, hour, minute, second = await self.ntp_module.get_ntp_time(mode)
+        time_valid, hour, minute, second = await self.ntp_module.get_ntp_time(self.ntp_timeout_s, self.ntp_validity_s)
         
         if __debug__:
             print("Got NTP Time:", time_valid, hour, minute, second)
         
         if time_valid:
-            rtc_hour, rtc_minute = self.get_hour_minute()
+            rtc_hour, rtc_minute = self.rtc.get_hour_minute()
             self.rtc.set_hour_min_sec(hour, minute, second)
             
-            if(rtc_hour != hour or rtc_minute != minute) #so time animations are definitely displayed
+            if(rtc_hour != hour or rtc_minute != minute): #so time animations are definitely displayed
                 if __debug__:
                     print("Forced Display of new time since new ntp time differed")
                 self.alarm_flag = True

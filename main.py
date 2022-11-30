@@ -73,6 +73,6 @@ clk_interrupt_pin = 13
 
 ntp = NTPmodule(i2c0, 40)
 
-clockclock = ClockClock24(module_i2c_adr, module_i2c_bus, i2c1, clk_interrupt_pin, 4320)
+clockclock = ClockClock24(module_i2c_adr, module_i2c_bus, i2c1, clk_interrupt_pin, ntp, 4320)
 
 asyncio.run(main_loop())

@@ -36,6 +36,8 @@ class ClockModule: # module for 1 of the 6 pcbs in the clock
         self.all_hour_steppers = ClockStepper(self.stepper_selector["hour"], self, self.steps_full_rev)
         self.all_minute_steppers = ClockStepper(self.stepper_selector["minute"], self, self.steps_full_rev)
         
+        self.verbose = False
+        
     def enable_disable_driver_module(self, enable_disable: bool):
         """
         true to enable driver of module
@@ -57,7 +59,8 @@ class ClockModule: # module for 1 of the 6 pcbs in the clock
             try:
                 self.i2c_bus.writeto(self.i2c_address, buffer)
             except:
-                print("Slave not found:", self.i2c_address, " Data:", buffer)
+                if self.verbose:
+                    print("Slave not found:", self.i2c_address, " Data:", buffer)
         else:
             self.i2c_bus.writeto(self.i2c_address, buffer)
     
@@ -66,7 +69,8 @@ class ClockModule: # module for 1 of the 6 pcbs in the clock
             try:
                 return self.i2c_bus.readfrom(self.i2c_address, byte_count)
             except:
-                print("Slave not found:", self.i2c_address, "Tried to read ", byte_count, "byte(s)")
+                if self.verbose:
+                    print("Slave not found:", self.i2c_address, "Tried to read ", byte_count, "byte(s)")
                 return (0,)
         else:
             return self.i2c_bus.readfrom(self.i2c_address, byte_count)
@@ -114,6 +118,8 @@ class ClockStepper:
         self.sub_stepper_id = sub_stepper_id
         self.current_target_pos = current_target_pos
         self.steps_per_rev = steps_per_rev
+        
+        self.verbose = False
         
     def set_speed(self, speed: int):
         buffer = pack("<BHb", self.cmd_id["set_speed"], speed, self.sub_stepper_id) #cmd_id uint8, speed uint16, stepper_id int8           
@@ -176,7 +182,8 @@ class ClockStepper:
             try:
                 self.module.i2c_bus.writeto(self.module.i2c_address, buffer)
             except:
-                print("Slave not found:", self.module.i2c_address, " Data:", buffer)
+                if self.verbose:
+                    print("Slave not found:", self.module.i2c_address, " Data:", buffer)
         else:
             self.module.i2c_bus.writeto(self.module.i2c_address, buffer)
     
@@ -185,7 +192,8 @@ class ClockStepper:
             try:
                 return self.module.i2c_bus.readfrom(self.module.i2c_address, byte_count)
             except:
-                print("Slave not found:", self.i2c_address, "Tried to read ", byte_count, "byte(s)")
+                if self.verbose:
+                    print("Slave not found:", self.i2c_address, "Tried to read ", byte_count, "byte(s)")
                 return (0,)
         else:
             return self.module.i2c_bus.readfrom(self.module.i2c_address, byte_count)

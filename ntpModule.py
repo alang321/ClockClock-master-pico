@@ -14,11 +14,15 @@ class NTPmodule:
         return
     
     def start_hotspot(self):
+        if __debug__:
+            print("start hotspot")
         buffer = pack("<BB", 0, 1) #start hotspot
         
         self.i2c_write(buffer)
         
     def stop_hotspot(self):
+        if __debug__:
+            print("stop hotspot")
         buffer = pack("<BB", 0, 0) #stop hotspot
         
         self.i2c_write(buffer)
@@ -60,7 +64,6 @@ class NTPmodule:
             ntp_return = self.__read_ntp()
             still_polling = ((1 << 1) & ntp_return[0] != 0)
             time_valid = ((1 << 0) & ntp_return[0] != 0)
-            print('polled ntp time')
         
         return time_valid, ntp_return[1], ntp_return[2], ntp_return[3]
 
