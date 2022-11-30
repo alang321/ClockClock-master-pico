@@ -3,6 +3,7 @@ import time
 from ClockClock24 import ClockClock24
 import uasyncio as asyncio
 from OneButton import OneButton
+from ntpModule import NTPmodule
 
 # button handlers
 def cycle_mode(pin):
@@ -69,6 +70,8 @@ module_i2c_bus = [i2c1, i2c0, # the bus on which the module is
 time.sleep(6) #wait so clock modules have time to setup
 
 clk_interrupt_pin = 13
+
+ntp = NTPmodule(i2c0, 40)
 
 clockclock = ClockClock24(module_i2c_adr, module_i2c_bus, i2c1, clk_interrupt_pin, 4320)
 

@@ -7,6 +7,7 @@ from PersistentStorage import PersistentStorage
 import uasyncio as asyncio
 import os
 import json
+from machine import Timer
 
 class ClockClock24:
     #fast speed used when showing mode numbers and similar
@@ -14,7 +15,7 @@ class ClockClock24:
     stepper_accel_fast = 450
     
     #normal speed used in most modes
-    stepper_speed_default = 585
+    stepper_speed_defaufrom machine import Timerlt = 585
     stepper_accel_default = 210
     
     #used in stealth mode
@@ -35,7 +36,7 @@ class ClockClock24:
       "settings": 6,
       }
     
-    def __init__(self, slave_adr_list, i2c_bus_list, clk_i2c_bus, clk_interrupt_pin, steps_full_rev=4320):
+    def __init__(self, slave_adr_list, i2c_bus_list, clk_i2c_bus, clk_interrupt_pin, ntp_module=None, steps_full_rev=4320):
         # persistent data
         self.__nightmode_allowed_modes = [ClockClock24.modes["visual"],
                                           ClockClock24.modes["shortest path"],
@@ -57,7 +58,8 @@ class ClockClock24:
                    PersistentStorage.persistent_var("one style", 0, lambda a : True if a in [0, 1] else False),
                    PersistentStorage.persistent_var("eight style", 0, lambda a : True if a in [0, 1, 2] else False),
                    PersistentStorage.persistent_var("default mode", ClockClock24.modes["night mode"], lambda a : True if a in self.__defaultmode_allowed_modes else False),
-                   PersistentStorage.persistent_var("12 hour format", 0, lambda a : True if a in [0, 1] else False)] # 0 for 24 hour format, 1 for twelve hour formaty
+                   PersistentStorage.persistent_var("12 hour format", 0, lambda a : True if a in [0, 1] else False),
+                   PersistentStorage.persistent_var("NTP enabled", 0, lambda a : True if a in [0, 1] else False)] # 0 for 24 hour format, 1 for twelve hour formaty
         
         self.persistent = PersistentStorage("settings", var_lst)
         
@@ -66,7 +68,7 @@ class ClockClock24:
 
         self.steps_full_rev = steps_full_rev
         
-        self.visual_animation_ids = [DigitDisplay.animations["extra revs"], #these get shuffled randomly when ever at end of list
+        self.visual_animation_ids = [DigitDisplay.animations["extra revs"], #these get shuffled randomly when ever end of list is reached
                                      DigitDisplay.animations["straight wave"],
                                      DigitDisplay.animations["opposing pointers"],
                                      DigitDisplay.animations["focus"],
@@ -82,6 +84,16 @@ class ClockClock24:
                                      ]
         self.random_shuffle(self.visual_animation_ids)
         self.animation_index = 0
+        
+        self.ntp_module = ntp_module
+        self.ntp_poll_freq_m = 3 #how often ntp is polled, should be more than the timeout
+        self.ntp_timeout_s = 120 #for how long the ntp mopdule tries to retrieve the ntp
+        self.ntp_validity_s = self.ntp_timeout_s #for how long the ntp stays valid in the ntp module after receving a ntp time
+        self.async_ntp_task = None
+        self.ntp_timer = Timer()
+        self.timer_running = False #wether or not timer is aalready running
+        
+        self.start_ntp()
 
         #asyncio
         self.async_display_task = None  # currently running asynchronous tasks that have to be cancelled
@@ -115,20 +127,22 @@ class ClockClock24:
         self.settings_pages = {
             "change time": 0,
             "24/12": 1,
-            "default mode": 2,
-            "night end": 3,
-            "night start": 4,
-            "day mode": 5,
-            "night mode": 6,
-            "one style": 7,
-            "eight style": 8,
-            "reset": 9
+            "ntp": 2,
+            "default mode": 3,
+            "night end": 4,
+            "night start": 5,
+            "day mode": 6,
+            "night mode": 7,
+            "one style": 8,
+            "eight style": 9,
+            "reset": 10
         }
         
         self.__settings_current_page = 0
         self.__settings_current_digit = 3
         self.__settings_display_funcs = [self.__settings_time_disp,
                                          self.__settings_time_format_disp,
+                                         self.__settings_ntp_disp,
                                          self.__settings_mode_default_disp,
                                          self.__settings_night_end_disp,
                                          self.__settings_night_start_disp,
@@ -140,6 +154,7 @@ class ClockClock24:
         
         self.__settings_modify_val_funcs   = [self.__settings_time_mod,
                                              self.__settings_time_format_mod,
+                                             self.__settings_ntp_mod,
                                              self.__settings_mode_default_mod,
                                              self.__settings_night_end_mod,
                                              self.__settings_night_start_mod,
@@ -149,7 +164,7 @@ class ClockClock24:
                                              self.__settings_eight_style_mod,
                                              self.__settings_reset_mod]
         
-        self.__settings_do_display_new_time = [True, False, False, False, False, False, False, False, False, False]
+        self.__settings_do_display_new_time = [True, False, False, False, False, False, False, False, False, False, False]
         self.__settings_pagecount = len(self.__settings_display_funcs)
         self.__persistent_data_changed = False
         
@@ -268,6 +283,8 @@ class ClockClock24:
         if start:
             if __debug__:
                 print("starting settings mode")
+            self.stop_ntp():
+                
             self.set_speed_all(ClockClock24.stepper_speed_fast)
             self.set_accel_all(ClockClock24.stepper_accel_fast)
             self.time_handler = self.time_change_handlers[ClockClock24.modes["settings"]]
@@ -277,6 +294,9 @@ class ClockClock24:
         else:
             if __debug__:
                 print("ending settings mode")
+                
+            self.ntp_module.stop_hotspot();
+            self.start_ntp():
                 
             if self.__reset_settings:
                 self.reset_settings()
@@ -382,6 +402,62 @@ class ClockClock24:
         return
 
 #endregion
+    
+#region ntp
+    
+    def stop_ntp(self):
+        if self.ntp_module != None:
+            self.__stop_ntp_timer()
+            
+        if self.async_ntp_task != None:
+            self.async_ntp_task.cancel()
+    
+    def start_ntp(self):
+        if self.ntp_module != None:
+            if self.persistent.get_var("NTP enabled"):
+                if not self.timer_running:
+                    self.__start_ntp_timer()
+            else:
+                if self.timer_running:
+                    self.__stop_ntp_timer()
+    
+    def __start_ntp_timer(self):
+        self.timer_running = True
+        if __debug__:
+            print("Starting NTP Timer:", self.__settings_current_page)
+        self.ntp_timer.init(period=int(self.ntp_poll_freq_m*60*1000), mode=Timer.PERIODIC, callback=self.__ntp_callback)
+        
+    def __stop_ntp_timer(self):
+        self.timer_running = False
+        if __debug__:
+            print("Stopping NTP Timer:")
+        self.ntp_timer.deinit()
+        
+    def __ntp_callback(self):
+        if __debug__:
+            print("Polling NTP Time:")
+        if self.async_ntp_task != None:
+            self.async_ntp_task.cancel()
+            
+        self.async_ntp_task = asyncio.create_task(self.ntp_get_time())
+
+    async def __ntp_get_time(self):
+        time_valid, hour, minute, second = await self.ntp_module.get_ntp_time(mode)
+        
+        if __debug__:
+            print("Got NTP Time:", time_valid, hour, minute, second)
+        
+        if time_valid:
+            rtc_hour, rtc_minute = self.get_hour_minute()
+            self.rtc.set_hour_min_sec(hour, minute, second)
+            
+            if(rtc_hour != hour or rtc_minute != minute) #so time animations are definitely displayed
+                if __debug__:
+                    print("Forced Display of new time since new ntp time differed")
+                self.alarm_flag = True
+        
+    
+#endregion
 
 #region settings
 
@@ -397,6 +473,13 @@ class ClockClock24:
             
         if self.__reset_settings:
             self.reset_settings()
+        
+        
+        if self.ntp_module != None:
+            if self.__settings_current_page == self.settings_pages["ntp"]:
+                self.ntp_module.start_hotspot();
+            else:
+                self.ntp_module.stop_hotspot();
 
         #page number animation
         self.input_lock_2 = True
@@ -462,6 +545,14 @@ class ClockClock24:
         
         if __debug__:
             print("new:  12 hour format = ", bool(new_time_format))
+            
+    def __settings_ntp_mod(self, direction):
+        new_ntp_enabled = (self.persistent.get_var("NTP enabled") + direction) % 2
+         
+        self.persistent.set_var("NTP enabled", new_ntp_enabled)
+        
+        if __debug__:
+            print("ntp enabled = ", bool(new_ntp_enabled))
         
     def __settings_mode_default_mod(self, direction):
         index = self.__defaultmode_allowed_modes.index(self.persistent.get_var("default mode"))
@@ -545,6 +636,8 @@ class ClockClock24:
             self.__reset_settings = True
         
 #endregion
+            
+#region settings display
 
     def __settings_update_display(self):
         self.__settings_display_funcs[self.__settings_current_page]()
@@ -587,6 +680,12 @@ class ClockClock24:
         else:
             self.digit_display.display_mode(23)
         
+    def __settings_ntp_disp(self):
+        if bool(self.persistent.get_var("NTP enabled")):
+            self.digit_display.display_mode(0)
+        else:
+            self.digit_display.display_mode(-1)
+        
     def __settings_reset_disp(self):
         if self.__reset_settings:
             self.move_to_hour(int(self.steps_full_rev * 0.125))
@@ -622,6 +721,11 @@ class ClockClock24:
         self.__reset_settings = False
         self.rtc.set_hour_minute(0, 0)
         self.persistent.reset_flash()
+        
+        if self.ntp_module != None:
+            self.ntp_module.reset_data()
+        
+        self.start_ntp()
 
         self.digit_display.number_style_options[1] = self.persistent.get_var("one style")
         self.digit_display.number_style_options[8] = self.persistent.get_var("eight style")
