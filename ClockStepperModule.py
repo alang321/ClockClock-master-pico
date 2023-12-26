@@ -79,11 +79,9 @@ class ClockModule: # module for 1 of the 6 pcbs in the clock
             return self.i2c_bus.readfrom(self.i2c_address, byte_count)
         
     def calculate_Checksum(self, buffer):
-        buffer_length = len(buffer)
-        checksum = sum(buffer[i] for i in range(buffer_length - 1)) & 0xFF
-        print(f"Checksum: {checksum}")
-        
-        return checksum % 256
+        checksum = sum(buffer[i] for i in range(1, len(buffer))) % 256
+
+        return checksum
 
 #endregion
         
@@ -212,10 +210,8 @@ class ClockStepper:
             return self.module.i2c_bus.readfrom(self.module.i2c_address, byte_count)
         
     def calculate_Checksum(self, buffer):
-        buffer_length = len(buffer)
-        checksum = sum(buffer[i] for i in range(buffer_length - 1)) & 0xFF
-        print(f"Checksum: {checksum}")
+        checksum = sum(buffer[i] for i in range(1, len(buffer))) % 256
         
-        return checksum % 256
+        return checksum
     
 #endregion
