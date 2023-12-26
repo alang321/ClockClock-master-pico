@@ -55,6 +55,9 @@ class ClockModule: # module for 1 of the 6 pcbs in the clock
         return (buffer[0] != 0)
     
     def i2c_write(self, buffer):
+        checksum = self.calculate_Checksum(buffer)
+        buffer += pack("<B", checksum)
+
         if __debug__:
             try:
                 self.i2c_bus.writeto(self.i2c_address, buffer)
@@ -74,6 +77,13 @@ class ClockModule: # module for 1 of the 6 pcbs in the clock
                 return (0,)
         else:
             return self.i2c_bus.readfrom(self.i2c_address, byte_count)
+        
+    def calculate_Checksum(self, buffer):
+        buffer_length = len(buffer)
+        checksum = sum(buffer[i] for i in range(buffer_length - 1)) & 0xFF
+        print(f"Checksum: {checksum}")
+        
+        return checksum % 256
 
 #endregion
         
@@ -178,6 +188,9 @@ class ClockStepper:
         return ((1 << self.sub_stepper_id) & buffer[0] != 0)
     
     def i2c_write(self, buffer):
+        checksum = self.calculate_Checksum(buffer)
+        buffer += pack("<B", checksum)
+    
         if __debug__:
             try:
                 self.module.i2c_bus.writeto(self.module.i2c_address, buffer)
@@ -197,5 +210,12 @@ class ClockStepper:
                 return (0,)
         else:
             return self.module.i2c_bus.readfrom(self.module.i2c_address, byte_count)
+        
+    def calculate_Checksum(self, buffer):
+        buffer_length = len(buffer)
+        checksum = sum(buffer[i] for i in range(buffer_length - 1)) & 0xFF
+        print(f"Checksum: {checksum}")
+        
+        return checksum % 256
     
 #endregion
