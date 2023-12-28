@@ -132,38 +132,38 @@ class ClockStepper:
     def set_speed(self, speed: int):
         buffer = pack("<BHb", self.cmd_id["set_speed"], speed, self.sub_stepper_id) #cmd_id uint8, speed uint16, stepper_id int8           
         
-        self.i2c_write(buffer)
+        self.module.i2c_write(buffer)
     
     def set_accel(self, accel: int):
         buffer = pack("<BHb", self.cmd_id["set_accel"], accel, self.sub_stepper_id) #cmd_id uint8, accel uint16, stepper_id int8           
 
-        self.i2c_write(buffer)
+        self.module.i2c_write(buffer)
     
     def move_to(self, position: int, direction: int):
         buffer = pack("<Bhbb", self.cmd_id["moveTo"], position, direction, self.sub_stepper_id) #cmd_id uint8, position int16, dir int8, stepper_id int8           
         
-        self.i2c_write(buffer)
+        self.module.i2c_write(buffer)
         
         self.current_target_pos = position
     
     def move_to_extra_revs(self, position: int, direction: int, extra_revs: int):
         buffer = pack("<BhbBb", self.cmd_id["moveTo_extra_revs"], position, direction, extra_revs, self.sub_stepper_id) #cmd_id uint8, position int16, dir int8, extra_revs uint8, stepper_id int8           
         
-        self.i2c_write(buffer)
+        self.module.i2c_write(buffer)
         
         self.current_target_pos = position
     
     def move_to_min_steps(self, position: int, direction: int, min_steps: int):
         buffer = pack("<BhbHb", self.cmd_id["moveTo_min_steps"], position, direction, min_steps, self.sub_stepper_id) #cmd_id uint8, position int16, dir int8, min_steps uint16, stepper_id int8           
         
-        self.i2c_write(buffer)
+        self.module.i2c_write(buffer)
         
         self.current_target_pos = position
     
     def move(self, distance: int, direction: int):
         buffer = pack("<BHbb", self.cmd_id["move"], distance, direction, self.sub_stepper_id) #cmd_id uint8, distance uint16, dir int8, stepper_id int8           
         
-        self.i2c_write(buffer)
+        self.module.i2c_write(buffer)
             
         relative = (distance * direction) % self.steps_per_rev
         self.current_target_pos = (self.steps_per_rev + self.current_target_pos + relative) % self.steps_per_rev
@@ -171,47 +171,18 @@ class ClockStepper:
     def stop(self):
         buffer = pack("<Bb", self.cmd_id["stop"], self.sub_stepper_id) #cmd_id uint8, stepper_id int8     
         
-        self.i2c_write(buffer)
+        self.module.i2c_write(buffer)
         
         self.current_target_pos = -1
 
     def wiggle(self, distance: int, direction: int):
         buffer = pack("<BHbb", self.cmd_id["wiggle"], distance, direction, self.sub_stepper_id) #cmd_id uint8, distance uint16, dir int8, stepper_id int8
 
-        self.i2c_write(buffer)
+        self.module.i2c_write(buffer)
     
     def is_running(self) -> bool: #returns True if stepper is running
-        buffer = self.i2c_read(1)
+        buffer = self.module.i2c_read(1)
             
         return ((1 << self.sub_stepper_id) & buffer[0] != 0)
-    
-    def i2c_write(self, buffer):
-        checksum = self.calculate_Checksum(buffer)
-        buffer += pack("<B", checksum)
-    
-        if __debug__:
-            try:
-                self.module.i2c_bus.writeto(self.module.i2c_address, buffer)
-            except:
-                if self.verbose:
-                    print("Slave not found:", self.module.i2c_address, " Data:", buffer)
-        else:
-            self.module.i2c_bus.writeto(self.module.i2c_address, buffer)
-    
-    def i2c_read(self, byte_count):
-        if __debug__:
-            try:
-                return self.module.i2c_bus.readfrom(self.module.i2c_address, byte_count)
-            except:
-                if self.verbose:
-                    print("Slave not found:", self.i2c_address, "Tried to read ", byte_count, "byte(s)")
-                return (0,)
-        else:
-            return self.module.i2c_bus.readfrom(self.module.i2c_address, byte_count)
-        
-    def calculate_Checksum(self, buffer):
-        checksum = sum(buffer[i] for i in range(1, len(buffer))) % 256
-        
-        return checksum
-    
+  
 #endregion

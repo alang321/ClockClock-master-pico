@@ -114,7 +114,7 @@ class ClockClock24:
                                      self.__shortest_path_new_time,
                                      self.__stealth_new_time,
                                      self.__analog_new_time,
-                                     self.__no_new_time,
+                                     self.__sleep_new_time,
                                      self.__settings_new_time]
         self.time_handler = None
         self.current_speed = -1
@@ -360,18 +360,36 @@ class ClockClock24:
 
     def __stealth_new_time(self, hour: int, minute: int):
         self.cancel_tasks() # tasks cancelled since previous display could still be running if started
+
+        # set speed and accel every minute, the clock used to crash every 2 weeks, i suspect this was due to corrupted i2c messages
+        # the validity checking and checksum should prevent this, but they lead to missed messages (very very rarely)
+        # in the case of a missed message on the mode change, one module would be stuck in the previous speed and accel
+        # adding these statements makes this be the case for at most 1 minute, while adding a bit of overhead
+        # but there is a lot of spare capacity on the i2c bus
+        self.set_speed_all(ClockClock24.stepper_speed_stealth)
+        self.set_accel_all(ClockClock24.stepper_accel_stealth)
+
         digits = [hour//10, hour%10, minute//10, minute%10]
         self.digit_display.display_digits(digits, DigitDisplay.animations["stealth"])
         
     def __shortest_path_new_time(self, hour: int, minute: int):
         self.cancel_tasks()
+
+        # see explanation in stealth function
+        self.set_speed_all(ClockClock24.stepper_speed_default)
+        self.set_accel_all(ClockClock24.stepper_accel_default)
+        
         digits = [hour//10, hour%10, minute//10, minute%10]
         self.digit_display.display_digits(digits, DigitDisplay.animations["shortest path"])
         
     def __visual_new_time(self, hour: int, minute: int):
         self.cancel_tasks()
-        digits = [hour//10, hour%10, minute//10, minute%10]
+
+        # see explanation in stealth function
+        self.set_speed_all(ClockClock24.stepper_speed_default)
+        self.set_accel_all(ClockClock24.stepper_accel_default)
         
+        digits = [hour//10, hour%10, minute//10, minute%10]
         if __debug__:
             print("animation id:", self.visual_animation_ids[self.animation_index],", current queue:", self.visual_animation_ids)
             
@@ -385,6 +403,11 @@ class ClockClock24:
     
     def __analog_new_time(self, hour: int, minute: int):
         self.cancel_tasks()
+
+        # see explanation in stealth function
+        self.set_speed_all(ClockClock24.stepper_speed_analog)
+        self.set_accel_all(ClockClock24.stepper_accel_analog)
+        
         for stepper in self.minute_steppers:
             stepper.move_to(int(self.steps_full_rev/60 * minute), 0)
             
@@ -393,9 +416,25 @@ class ClockClock24:
     
     def __settings_new_time(self, hour: int, minute: int):
         self.cancel_tasks()
+
+        # see explanation in stealth function
+        self.set_speed_all(ClockClock24.stepper_speed_default)
+        self.set_accel_all(ClockClock24.stepper_accel_default)
+
         if self.__settings_do_display_new_time[self.__settings_current_page]:
             self.__settings_update_display()
-        
+
+    def __sleep_new_time(self, hour: int, minute: int):
+        # here tasks are not cancelled since this could be called during set mode
+        self.set_speed_all(ClockClock24.stepper_speed_default)
+        self.set_accel_all(ClockClock24.stepper_accel_default)
+    
+        self.move_to_all(int(0.5*self.steps_full_rev))
+
+        if __debug__:
+            print("New time not displayed")
+        return
+
     def __no_new_time(self, hour: int, minute: int):
         # here tasks are not cancelled since this could be called during set mode
         if __debug__:
@@ -642,6 +681,10 @@ class ClockClock24:
 #region settings display
 
     def __settings_update_display(self):
+        # see explanation in stealth function
+        self.set_speed_all(ClockClock24.stepper_speed_default)
+        self.set_accel_all(ClockClock24.stepper_accel_default)
+
         self.__settings_display_funcs[self.__settings_current_page]()
 
     def __settings_time_disp(self):
@@ -733,6 +776,8 @@ class ClockClock24:
         self.digit_display.number_style_options[8] = self.persistent.get_var("eight style")
         self.alarm_flag = True
     
+#endregion
+        
 #endregion
 
 #region commands
