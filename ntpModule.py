@@ -39,20 +39,44 @@ class NTPmodule:
         
     def __read_ntp(self):
         try:
-            timebuf = self.i2c.readfrom(self.address, 4)
-            return unpack("<BBBB", timebuf)
+            timebuf = self.i2c.readfrom(self.address, 5)
+            checksum = self.calculate_Checksum(timebuf[:-1])
+            if checksum == timebuf[-1]:
+                return unpack("<BBBB", timebuf[:-1])
+            else:
+                if __debug__:
+                    print("NTP checksum error")
+                return (0, 0, 0, 0)
         except:
             if __debug__:
                 print("NTP module not found")
             return (0, 0, 0, 0)
         
     def i2c_write(self, buffer):
+        checksum = self.calculate_Checksum(buffer)
+        buffer += pack("<B", checksum)
+
         try:
             self.i2c.writeto(self.address, buffer)
         except:
             if __debug__:
                 print("NTP module not found", buffer)
-            
+    
+    def calculate_Checksum(self, buffer):
+        checksum = sum(buffer[i] for i in range(len(buffer))) % 256
+
+        return checksum
+    
+    def is_time_valid(self, ntp_return):
+        combined_bool, hour, minute, second = ntp_return
+
+        if hour > 23 or minute > 59 or second > 59:
+            return False
+        else:
+            return True
+        
+        
+    
     async def get_ntp_time(self, ntp_timeout=120, ntp_validity=120):
         self.__start_ntp_poll(ntp_timeout, ntp_validity)
         
@@ -64,6 +88,9 @@ class NTPmodule:
             ntp_return = self.__read_ntp()
             still_polling = ((1 << 1) & ntp_return[0] != 0)
             time_valid = ((1 << 0) & ntp_return[0] != 0)
+
+        if not self.is_time_valid(ntp_return):
+            time_valid = False
         
         return time_valid, ntp_return[1], ntp_return[2], ntp_return[3]
 

@@ -519,9 +519,9 @@ class ClockClock24:
         
         if self.ntp_module != None:
             if self.__settings_current_page == self.settings_pages["ntp"]:
-                self.ntp_module.start_hotspot();
+                self.ntp_module.start_hotspot()
             else:
-                self.ntp_module.stop_hotspot();
+                self.ntp_module.stop_hotspot()
 
         #page number animation
         self.input_lock_2 = True
