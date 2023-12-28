@@ -79,7 +79,7 @@ class ClockModule: # module for 1 of the 6 pcbs in the clock
             return self.i2c_bus.readfrom(self.i2c_address, byte_count)
         
     def calculate_Checksum(self, buffer):
-        checksum = sum(buffer[i] for i in range(1, len(buffer))) % 256
+        checksum = sum(buffer[i] for i in range(len(buffer))) % 256
 
         return checksum
 

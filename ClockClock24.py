@@ -10,6 +10,7 @@ import json
 from machine import Timer
 
 class ClockClock24:
+    #be carefull that these dont exceed the maxximum speed set in the driver, if so the commands will be ignored
     #fast speed used when showing mode numbers and similar
     stepper_speed_fast = 700
     stepper_accel_fast = 450
@@ -312,8 +313,8 @@ class ClockClock24:
             self.set_speed_all(ClockClock24.stepper_speed_default)
             self.set_accel_all(ClockClock24.stepper_accel_default)
             self.time_handler = self.time_change_handlers[self.__current_mode]
-        
-            self.move_to_all(int(0.5*self.steps_full_rev))
+
+            self.alarm_flag = True # so a new time is displayed instead of the mode number even before next minute
 
 #endregion
 
@@ -361,11 +362,13 @@ class ClockClock24:
     def __stealth_new_time(self, hour: int, minute: int):
         self.cancel_tasks() # tasks cancelled since previous display could still be running if started
 
-        # set speed and accel every minute, the clock used to crash every 2 weeks, i suspect this was due to corrupted i2c messages
-        # the validity checking and checksum should prevent this, but they lead to missed messages (very very rarely)
+        # Set speed and accel every minute, the clock used to crash every 2 weeks, i suspect this was due to corrupted i2c messages.
+        # The validity checking and checksum should prevent this, but they lead to missed messages (very very rarely)
         # in the case of a missed message on the mode change, one module would be stuck in the previous speed and accel
         # adding these statements makes this be the case for at most 1 minute, while adding a bit of overhead
-        # but there is a lot of spare capacity on the i2c bus
+        # but there is a lot of spare capacity on the i2c bus.
+        # Usually set acceleration is relatively expensive due to a sqrt, but if the acceleration is already set
+        # it is not update by the driver, so this is not a problem.
         self.set_speed_all(ClockClock24.stepper_speed_stealth)
         self.set_accel_all(ClockClock24.stepper_accel_stealth)
 
@@ -425,14 +428,12 @@ class ClockClock24:
             self.__settings_update_display()
 
     def __sleep_new_time(self, hour: int, minute: int):
-        # here tasks are not cancelled since this could be called during set mode
+        self.cancel_tasks()
+
         self.set_speed_all(ClockClock24.stepper_speed_default)
         self.set_accel_all(ClockClock24.stepper_accel_default)
     
         self.move_to_all(int(0.5*self.steps_full_rev))
-
-        if __debug__:
-            print("New time not displayed")
         return
 
     def __no_new_time(self, hour: int, minute: int):
