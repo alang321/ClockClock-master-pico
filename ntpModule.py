@@ -40,8 +40,9 @@ class NTPmodule:
     def __read_ntp(self):
         try:
             timebuf = self.i2c.readfrom(self.address, 5)
+            checksum_received = unpack("<BBBBB", timebuf)[-1]
             checksum = self.calculate_Checksum(timebuf[:-1])
-            if checksum == timebuf[-1]:
+            if checksum == checksum_received:
                 return unpack("<BBBB", timebuf[:-1])
             else:
                 if __debug__:
