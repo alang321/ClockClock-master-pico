@@ -1,5 +1,5 @@
 import machine
-import urtc
+import lib.urtc as urtc
 
 class DS3231_timekeeper:
     def __init__(self, new_minute_handler, alarm_pin: int, i2c_bus: machine.I2C, second=0, enable_minute_alarm=True):

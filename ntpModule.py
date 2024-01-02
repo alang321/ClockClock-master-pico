@@ -3,7 +3,7 @@ from struct import pack, unpack
 import time
 import uasyncio as asyncio
 
-class NTPmodule:
+class NTPModule:
     
     def __init__(self, i2c_bus, address, i2c_polling_interval=3):
         self.i2c = i2c_bus

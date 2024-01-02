@@ -78,7 +78,7 @@ class DigitDisplay:
       "uhrenspiel": 16, # dangling pointers
       }
     
-    def __init__(self, clockclock, number_style_options):
+    def __init__(self, clockclock):
         """
         Parameters
         ----------
@@ -87,12 +87,12 @@ class DigitDisplay:
         """
         self.clockclock = clockclock
         
-        self.number_style_options = number_style_options
+        self.number_style_options = [0, self.clockclock.settings.persistent.get_var("one style"), 0, 0, 0, 0, 0, 0, self.clockclock.settings.persistent.get_var("eight style"), 0]
         
-        self.hour_steppers = self.clockclock.hour_steppers
-        self.minute_steppers = self.clockclock.minute_steppers
+        self.hour_steppers = self.clockclock.steppers.hour_steppers
+        self.minute_steppers = self.clockclock.steppers.minute_steppers
         
-        self.steps_full_rev = self.clockclock.steps_full_rev
+        self.steps_full_rev = self.clockclock.settings.steps_full_rev
         
         self.animation_handlers = [
             self.new_pose_shortest_path,
@@ -117,6 +117,7 @@ class DigitDisplay:
         self.digits_pointer_pos_abs = [[[[int(frac * self.steps_full_rev) for frac in hour_minute] for hour_minute in digit_option] for digit_option in number] for number in DigitDisplay.digits_pointer_pos_frac]
         
     def __get_digit_pos_abs(self, digit):
+        
         return self.digits_pointer_pos_abs[digit][self.number_style_options[digit]]
         
     def display_digit(self, field, digit, direction, extra_revs = 0):

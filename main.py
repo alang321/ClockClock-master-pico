@@ -2,8 +2,8 @@ import machine
 import time
 from ClockClock24 import ClockClock24
 import uasyncio as asyncio
-from OneButton import OneButton
-from ntpModule import NTPmodule
+from lib.OneButton import OneButton
+from ClockSettings import ClockSettings
 
 # button handlers
 def cycle_mode(pin):
@@ -55,24 +55,12 @@ async def main_loop():
         for button in buttons:
             button.tick()
 
-i2c1 = machine.I2C(1, sda=machine.Pin(14), scl=machine.Pin(3), freq=100000)
-i2c0 = machine.I2C(0, sda=machine.Pin(16), scl=machine.Pin(17), freq=100000)
 
-# module addresses  (pcb containing 4 steppers and a mcu, stm32f103 in this case)
-module_i2c_adr = [12, 13, # the adress of the module starting top left row first
-                  14, 15, 
-                  16, 17]
-
-module_i2c_bus = [i2c1, i2c0, # the bus on which the module is
-                  i2c1, i2c0, 
-                  i2c1, i2c0]
 
 time.sleep(6) #wait so clock modules have time to setup
 
-clk_interrupt_pin = 13
+clockclock_settings = ClockSettings()
 
-ntp = NTPmodule(i2c0, 40)
-
-clockclock = ClockClock24(module_i2c_adr, module_i2c_bus, i2c1, clk_interrupt_pin, ntp, 4320)
+clockclock = ClockClock24(clockclock_settings)
 
 asyncio.run(main_loop())
