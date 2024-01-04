@@ -12,92 +12,127 @@ class Settings:
         self.stepper_accel = self.clockclock.settings.stepper_accel_fast
 
         self.input_lock = False # turned on during setting spage change
+        self.dont_display_time = False # turned on during setting spage change
 
-        self.__persistent_data_changed = False
+        self.__persistent_data_changed_flag = False # flag set to true when persistent data is changed
 
         self.async_setting_page_change_task = None
         
-        self.__settings_current_page = 0
+        self.__reset_settings_flag = False
 
-        self.__settings_pagecount = None
+        self.__is_started = False
+
+        self.settings_pages = []
+        self.__current_page_idx = 0 
+        self.__current_page = None
 
     def start(self):
-            if __debug__:
-                print("starting settings mode")
-            self.clockclock.stop_ntp()
-            
-            self.clockclock.set_speed_all(self.stepper_speed)
-            self.clockclock.set_accel_all(self.stepper_accel)
+        if __debug__:
+            print("starting settings mode")
+        self.clockclock.stop_ntp()
+        
+        self.clockclock.set_speed_all(self.stepper_speed)
+        self.clockclock.set_accel_all(self.stepper_accel)
 
-            self.__persistent_data_changed = False
-            self.input_lock = False
+        self.__persistent_data_changed_flag = False
+        self.input_lock = False
 
-            self.async_setting_page_task = asyncio.create_task(self.__settings_set_page(0))
+        self.__is_started = True
+
+        self.settings_set_page(0)
 
     def end(self):
-        self.__cancel_setting_page_task()
-        
-        if self.ntp_module != None:
-            self.ntp_module.stop_hotspot()
-        self.start_ntp()
-            
-        if self.__reset_settings:
-            self.reset_settings()
-            
-        if self.__persistent_data_changed:
-            self.__persistent_data_changed = False
+        if self.__is_started:
+            self.__is_started = False
 
-            self.persistent.write_flash()
+            self.cancel_setting_page_task()
+            
+            if self.clockclock.ntp_module != None:
+                self.clockclock.ntp_module.stop_hotspot()
+                self.clockclock.start_ntp()
+                
+            if self.__persistent_data_changed_flag:
+                self.__persistent_data_changed_flag = False
+
+                self.clockclock.settings.persistent.write_flash()
 
     def new_time(self, hour, minute):
-        #todo implement
-        return
+        if not self.dont_display_time:
+            if self.__current_page != None:
+                self.__current_page.new_time(hour, minute)
         
-    def button_click(self, button_id):
-        #todo implement
+    def button_click(self, button_id: int, long_press=False, double_press=False):
+        
+        if button_id == self.clockclock.button_id["next_digit"] and long_press:
+            self.set_mode((self.current_mode_idx + 1) % len(self.modes))
+        else:
+            if self.__current_mode != None:
+                self.__current_mode.button_handler(button_id, long_press, double_press)
         return
     
 #region setting page management
     
     def cancel_setting_page_task(self):
-        if self.async_setting_page_task != None: 
-            self.async_setting_page_task.cancel()
+        if self.async_setting_page_change_task != None: 
+            self.async_setting_page_change_task.cancel()
 
     def __cancel_tasks(self):
-        self.__cancel_setting_page_task()
-        self.clockclock.cancel_tasks()
+        self.cancel_setting_page_task()
+        self.__cancel_tasks()
 
-        
-    def settings_change_page(self, direction):
+    def change_page(self, direction):
         if not self.input_lock:
-            self.clockclock.cancel_tasks()
-            self.async_setting_page_change_task = asyncio.create_task(self.__settings_set_page((self.__settings_current_page + direction) % self.__settings_pagecount))
-
-            
-    def settings_set_page(self, direction):
+            self.__cancel_tasks()
+            self.async_setting_page_change_task = asyncio.create_task(self.__set_page((self.__current_page + direction) % len(self.settings_pages)))
+  
+    def set_page(self, idx):
         if not self.input_lock:
-            self.cancel_tasks()
-            self.async_setting_page_change_task = asyncio.create_task(self.__settings_set_page((self.__settings_current_page + direction) % self.__settings_pagecount))
+            self.__cancel_tasks()
+            self.async_setting_page_change_task = asyncio.create_task(self.__set_page(idx))
 
-    async def __settings_set_page(self, pagenum):
-        self.__settings_current_page = pagenum
+    async def __set_page(self, idx):
+        self.__current_page_idx = idx
         if __debug__:
-            print("settings set page:", self.__settings_current_page)
+            print("settings set page:", self.__current_page)
             
-        if self.__reset_settings:
+        if self.__reset_settings_flag:
             self.reset_settings()
         
-        
-        if self.ntp_module != None:
-            if self.__settings_current_page == self.settings_pages["ntp"]:
-                self.ntp_module.start_hotspot()
-            else:
-                self.ntp_module.stop_hotspot()
-            
+        #page number animation
+        self.input_lock = True
+        self.dont_display_time = True
+
+        if self.__current_page != None:
+            self.__current_page.end()
+        self.clockclock.digit_display.display_mode(self.__current_page, True)
+        self.clockclock.movement_done_event.clear() # wait until movement is completed
+        await self.clockclock.movement_done_event.wait()
+        await asyncio.sleep(.8) #so digit is visible for a bit
+
+        self.input_lock = False
+        self.dont_display_time = False
+
+        self.__current_page = self.settings_pages[self.__current_page_idx]
+        self.__current_page.start()  
 
 #endregion
+                
+    def reset_settings(self):
+        self.__persistent_data_changed_flag = False
+        self.clockclock.reset_persistent_settings()
 
 class SettingsPageNumberStyle:
+    #constructor
+     
+    #open page
+     
+    #close page
+     
+    #display function
+     
+    #new time handler
+     
+    #button handlers
 
 
 class SettingsPageTimeSetting:
@@ -130,38 +165,9 @@ class SettingsPageReset:
 
 
 
-
-    def __settings(self, start):
-        else:
-
-    
- 
-    def __settings_new_time(self, hour: int, minute: int):
-        self.__cancel_tasks()
-
-        # see explanation in stealth function
-        self.set_speed_all(ClockClock24.stepper_speed_default)
-        self.set_accel_all(ClockClock24.stepper_accel_default)
-
-        if self.__settings_do_display_new_time[self.__settings_current_page]:
-            self.__settings_update_display()
-
-
 #region settings
 
 
-        #page number animation
-        self.input_lock_2 = True
-        self.time_handler = self.__no_new_time # an empty time handler so a new time doesnt interrupt the displaying of the current mode
-        self.digit_display.display_mode(self.__settings_current_page, True)
-        self.movement_done_event.clear() # wait until movement is completed
-        await self.movement_done_event.wait()
-        await asyncio.sleep(.8) #so digit is visible for a bit
-        self.time_handler = self.time_change_handlers[self.__current_mode]
-        self.input_lock_2 = False
-        
-        self.__settings_current_digit = 3
-        self.__settings_update_display()
 
     def settings_next_digit(self):
         if not self.input_lock and not self.input_lock_2:

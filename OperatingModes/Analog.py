@@ -24,5 +24,5 @@ class Analog:
         self.steppers.move_to_all(int(self.clockclock.steps_full_rev/60 * minute))
         self.steppers.move_to_all(int(self.clockclock.steps_full_rev/12 * (hour%12 + minute/60)))
         
-    def button_click(self, button_id):
+    def button_click(self, button_id: int, long_press=False, double_press=False):
         return

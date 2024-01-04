@@ -15,7 +15,7 @@ from utime import ticks_ms, ticks_diff
 
 class OneButton:
 
-  def __init__(self, pinNr, activeLow, externalResistor=False):
+  def __init__(self, pinNr, activeLow, externalResistor=False, enable_double_click=True, enable_long_press=True):
     if externalResistor:
       self._pin = Pin(pinNr, Pin.IN) 
     else:
@@ -28,6 +28,9 @@ class OneButton:
     self._pressTicks = 1000
 
     self._debounceTicks = 10 # number of ticks for debounce times.
+
+    self.enable_long_press = enable_long_press
+    self.enable_double_click = enable_double_click
 
     # starting with state 0: waiting for button to be pressed
     self._state = 0
@@ -98,9 +101,14 @@ class OneButton:
         self._state = 0
 
       elif buttonLevel == self._buttonReleased:
-        self._state = 2
+        if self.enable_double_click:
+          self._state = 2
+        else:
+          if self._clickFunc:
+            self._clickFunc(self)
+          self._state = 0
 
-      elif (buttonLevel == self._buttonPressed) and (ticks_diff(now, self._startTime) > self._pressTicks):
+      elif (buttonLevel == self._buttonPressed) and self.enable_long_press and (ticks_diff(now, self._startTime) > self._pressTicks):
         self._isLongPressed = True;  # Keep track of long press state
         if self._longPressStartFunc:
            self._longPressStartFunc(self)

@@ -24,6 +24,7 @@ class NightDay:
     def end(self):
         if self.current_mode != None:
             self.current_mode.end()
+            self.current_mode = None
 
     def new_time(self, hour, minute):
         if isinstance(self.night_mode, NightDay):
@@ -60,6 +61,6 @@ class NightDay:
         if self.current_mode != None:
             self.current_mode.new_time(hour, minute)
 
-    def button_click(self, button_id):
+    def button_click(self, button_id: int, long_press=False, double_press=False):
         if self.current_mode != None:
             self.current_mode.button_click(button_id)

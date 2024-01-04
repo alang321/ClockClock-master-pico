@@ -23,5 +23,5 @@ class Sleep:
         
         self.steppers.move_to_all(int(0.5*self.clockclock.steps_full_rev))
         
-    def button_click(self, button_id):
+    def button_click(self, button_id: int, long_press=False, double_press=False):
         return

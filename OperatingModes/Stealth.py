@@ -32,5 +32,5 @@ class Stealth:
         digits = [hour//10, hour%10, minute//10, minute%10]
         self.clockclock.digit_display.display_digits(digits, DigitDisplay.animations["stealth"])
     
-    def button_click(self, button_id):
+    def button_click(self, button_id: int, long_press=False, double_press=False):
         return

@@ -39,7 +39,7 @@ class Visual:
             self.animation_index = 0
             self.random_shuffle(self.animation_id_lst)
             
-    def button_click(self, button_id):
+    def button_click(self, button_id: int, long_press=False, double_press=False):
         return
 
     def random_shuffle(seq):

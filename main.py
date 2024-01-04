@@ -1,4 +1,3 @@
-import machine
 import time
 from ClockClock24 import ClockClock24
 import uasyncio as asyncio
@@ -6,48 +5,41 @@ from lib.OneButton import OneButton
 from ClockSettings import ClockSettings
 
 # button handlers
-def cycle_mode(pin):
-    curr_mode = clockclock.get_mode()
-    clockclock.set_mode((curr_mode + 1) % len(ClockClock24.modes))
+def btn_mode(pin):
+    global clockclock
+    clockclock.button_handler(ClockClock24.button_id["mode"])
         
-def increment_digit(pin):
-    if not clockclock.input_lock:
-        if clockclock.get_mode() == ClockClock24.modes["settings"]:
-             clockclock.settings_incr_decr(1)
+def btn_plus(pin):
+    global clockclock
+    clockclock.button_handler(ClockClock24.button_id["plus"])
         
-def decrement_digit(pin):
-    if not clockclock.input_lock:
-        if clockclock.get_mode() == ClockClock24.modes["settings"]:
-             clockclock.settings_incr_decr(-1)
+def btn_minus(pin):
+    global clockclock
+    clockclock.button_handler(ClockClock24.button_id["minus"])
     
-def cycle_field(pin):
-    if not clockclock.input_lock:
-        if clockclock.get_mode() == ClockClock24.modes["settings"]:
-            clockclock.settings_next_digit()
+def btn_next(pin):
+    global clockclock
+    clockclock.button_handler(ClockClock24.button_id["next_digit"])
             
-def cycle_page(pin):
-    if not clockclock.input_lock:
-        if clockclock.get_mode() == ClockClock24.modes["settings"]:
-            clockclock.settings_change_page(1)
+def btn_next_long(pin):
+    global clockclock
+    clockclock.button_handler(ClockClock24.button_id["next_digit"], long_press=True)
 
 #main loop
 async def main_loop():
     global alarm_flag
     
-    button_mode = OneButton(19, True)
-    button_plus = OneButton(21, True)
-    button_minus = OneButton(18, True)
-    button_next_digit = OneButton(20, True)
+    button_mode = OneButton(19, True, enable_long_press=False, enable_double_click=False)
+    button_plus = OneButton(21, True, enable_long_press=False, enable_double_click=False)
+    button_minus = OneButton(18, True, enable_long_press=False, enable_double_click=False)
+    button_next_digit = OneButton(20, True, enable_long_press=True, enable_double_click=False)
     buttons = [button_mode, button_plus, button_minus, button_next_digit]
 
-    button_mode.attachClick(cycle_mode)
-    button_mode.attachLongPressStop(cycle_mode)
-    button_plus.attachClick(increment_digit)
-    button_plus.attachLongPressStop(increment_digit)
-    button_minus.attachClick(decrement_digit)
-    button_minus.attachLongPressStop(decrement_digit)
-    button_next_digit.attachClick(cycle_field)
-    button_next_digit.attachLongPressStop(cycle_page)
+    button_mode.attachClick(btn_mode)
+    button_plus.attachClick(btn_plus)
+    button_minus.attachClick(btn_minus)
+    button_next_digit.attachClick(btn_next)
+    button_next_digit.attachLongPressStop(btn_next_long)
 
     while True:
         await clockclock.run()
