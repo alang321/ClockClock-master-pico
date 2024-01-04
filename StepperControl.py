@@ -115,15 +115,7 @@ class ClockSteppers:
 
 class StepperModule: # module for 1 of the 6 pcbs in the clock
     cmd_id = {
-      "enable_driver": 0,
-      "set_speed": 1,
-      "set_accel": 2,
-      "moveTo": 3,
-      "moveTo_extra_revs": 4,
-      "move": 5,
-      "stop": 6,
-      "wiggle": 7,
-      "moveTo_min_steps": 8
+      "enable_driver": 0
     }
     
     stepper_selector = {"minute":-3,

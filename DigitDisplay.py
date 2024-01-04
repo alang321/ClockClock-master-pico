@@ -884,30 +884,30 @@ class DigitDisplay:
         speed = [int(i * 0.9) for i in [1000, 511, 224, 99]]
         accel = [int(i * 0.9) for i in [1422, 1072, 490, 217]]
         
-        self.clockclock.move_to_hour(startpos_h, 0)
-        self.clockclock.move_to_minute(startpos_m, 0)
+        self.clockclock.steppers.move_to_all(startpos_h, 0, minute=False)
+        self.clockclock.steppers.move_to_all(startpos_m, 0, hour=False)
         
         self.clockclock.movement_done_event.clear()
         await self.clockclock.movement_done_event.wait()
-        self.clockclock.set_accel_all(750)
+        self.clockclock.steppers.set_accel_all(750)
         
         for i in range(len(speed)):
-            self.clockclock.set_speed_all(speed[i])
+            self.clockclock.steppers.set_speed_all(speed[i])
             #self.clockclock.set_accel_all(accel[i])
             
-            self.clockclock.move_to_hour(targetpos_h[i], 0)
-            self.clockclock.move_to_minute(targetpos_m[i], 0)
+            self.clockclock.steppers.move_to_all(targetpos_h[i], 0, minute=False)
+            self.clockclock.steppers.move_to_all(targetpos_m[i], 0, hour=False)
             
             self.clockclock.movement_done_event.clear()
             try:
                 await self.clockclock.movement_done_event.wait()
             except asyncio.CancelledError:
-                self.clockclock.set_speed_all(oldspeed) # only gets called when task is cancelled
-                self.clockclock.set_accel_all(oldaccel)
+                self.clockclock.steppers.set_speed_all(oldspeed) # only gets called when task is cancelled
+                self.clockclock.steppers.set_accel_all(oldaccel)
                 raise
     
-        self.clockclock.set_speed_all(oldspeed)
-        self.clockclock.set_accel_all(oldaccel)
+        self.clockclock.steppers.set_speed_all(oldspeed)
+        self.clockclock.steppers.set_accel_all(oldaccel)
         
         await asyncio.sleep_ms(1000)
             

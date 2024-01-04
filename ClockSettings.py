@@ -2,31 +2,40 @@
 from lib.PersistentStorage import PersistentStorage
 from DigitDisplay import DigitDisplay
 import machine
-import OperationModes
+from OperatingModes.NightDay import NightDay
+from OperatingModes.Visual import Visual
+from OperatingModes.Stealth import Stealth
+import OperatingModes.ClockModes as ClockModes
 
 class ClockSettings:
     def __init__(self, filename="settings"):
+        self.__nightmode_allowed_modes = []
+        self.__startup_allowed_modes = []
+
+        for idx, mode in enumerate(ClockModes.get_mode_list()):
+            if mode.allowed_as_night_day_mode:
+                self.__nightmode_allowed_modes.append(idx)
+            if mode.allowed_as_startup_mode:
+                self.__startup_allowed_modes.append(idx)
         
-        self.__nightmode_allowed_modes = [OperationModes.Visual.id,
-                                          OperationModes.ShortestPath.id,
-                                          OperationModes.Stealth.id,
-                                          OperationModes.Analog.id,
-                                          OperationModes.Sleep.id]
-        
-        self.__defaultmode_allowed_modes = [OperationModes.NightDay.id,
-                                            OperationModes.Visual.id,
-                                            OperationModes.ShortestPath.id,
-                                            OperationModes.Stealth.id,
-                                            OperationModes.Analog.id,
-                                            OperationModes.Sleep.id]
+        default_startup_mode = NightDay
+        default_day_mode = Visual
+        default_night_mode = Stealth
+
+        if not default_startup_mode.allowed_as_startup_mode:
+            raise Exception("default startup mode is not allowed as startup mode")
+        if not default_day_mode.allowed_as_night_day_mode:
+            raise Exception("default day mode is not allowed as day mode")
+        if not default_night_mode.allowed_as_night_day_mode:
+            raise Exception("default night mode is not allowed as night mode")
         
         var_lst = [PersistentStorage.persistent_var("night start", [21, 0], lambda a : (0 <= a[0] <= 23 and 0 <= a[1] <= 59)), # todo fix
                    PersistentStorage.persistent_var("night end", [9, 30], lambda a : (0 <= a[0] <= 23 and 0 <= a[1] <= 59)),
-                   PersistentStorage.persistent_var("night mode", OperationModes.Stealth.id, lambda a : True if a in self.__nightmode_allowed_modes else False),
-                   PersistentStorage.persistent_var("day mode", OperationModes.Visual.id, lambda a : True if a in self.__nightmode_allowed_modes else False),
+                   PersistentStorage.persistent_var("night mode", default_night_mode, lambda a : True if a in self.__nightmode_allowed_modes else False),
+                   PersistentStorage.persistent_var("day mode", default_day_mode, lambda a : True if a in self.__nightmode_allowed_modes else False),
                    PersistentStorage.persistent_var("one style", 0, lambda a : True if a in [0, 1] else False),
                    PersistentStorage.persistent_var("eight style", 0, lambda a : True if a in [0, 1, 2] else False),
-                   PersistentStorage.persistent_var("default mode", OperationModes.NightDay.id, lambda a : True if a in self.__defaultmode_allowed_modes else False),
+                   PersistentStorage.persistent_var("default mode", default_startup_mode, lambda a : True if a in self.__startup_allowed_modes else False),
                    PersistentStorage.persistent_var("12 hour format", 0, lambda a : True if a in [0, 1] else False),
                    PersistentStorage.persistent_var("NTP enabled", 0, lambda a : True if a in [0, 1] else False)] # 0 for 24 hour format, 1 for twelve hour formaty
         
@@ -89,6 +98,3 @@ class ClockSettings:
                                 DigitDisplay.animations["small circles"],
                                 #DigitDisplay.animations["uhrenspiel"]
                                 ]
-    
-
-        

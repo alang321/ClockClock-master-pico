@@ -5,21 +5,16 @@ import uasyncio as asyncio
 from machine import Timer
 from ClockSettings import ClockSettings
 from NTPModule import NTPModule
-import OperationModes
+import OperatingModes.ClockModes as ClockModes
 
 class ClockClock24:
-    #be carefull that these dont exceed the maxximum speed set in the driver, if so the commands will be ignored
-    #fast speed used when showing mode numbers and similar
-
-
-    
     def __init__(self):
         # persistent data and config values
         self.settings = ClockSettings()
         
         #timekeeping, rtc and ntp module
-        self.alarm_flag = False
-        self.rtc = DS3231_timekeeper(self.new_minute_handler, ClockConfig.ds3231_interrupt_pin, ClockConfig.ds3231_bus, ClockConfig.second)
+        self.new_minute_alarm_flag = False
+        self.rtc = DS3231_timekeeper(self.new_minute_handler, self.settings.ds3231_interrupt_pin, self.settings.ds3231_bus)
         self.ntp_module = None
         if self.settings.ntp_module_present:
             self.ntp_module = NTPModule(self.settings.ntp_module_bus, self.settings.ntp_module_adr, self.settings.ntp_poll_freq)               
@@ -39,9 +34,10 @@ class ClockClock24:
         self.digit_display = DigitDisplay(self)
 
         #list of operation mode objects
-        self.modes = OperationModes.get_mode_list(self)
+        self.modes = [ModeClass(self) for ModeClass in ClockModes.get_mode_list(self)]
         self.current_mode_idx = self.settings.persistent.get_var("default mode")
 
+        #flags, set during mode change
         self.input_lock = False
         self.dont_display_time = False
         
@@ -53,17 +49,17 @@ class ClockClock24:
             if not self.steppers.is_running():
                 self.movement_done_event.set()
 
-        if self.alarm_flag:
-            self.alarm_flag = False
+        if self.new_minute_alarm_flag:
+            self.new_minute_alarm_flag = False
             hour, minute = self.rtc.get_hour_minute(bool(self.settings.persistent.get_var("12 hour format")))
             self.display_time(hour, minute)
 
-        await asyncio.sleep(0)
+        await asyncio.sleep(0) #so other tasks can run
 
     def new_minute_handler(self):
         if __debug__:
             print("Interrupt received")
-        self.alarm_flag = True
+        self.new_minute_alarm_flag = True
 
     def display_time(self, hour: int, minute: int):
         if __debug__:
@@ -78,9 +74,7 @@ class ClockClock24:
         if self.async_display_task != None:
             self.async_display_task.cancel()
         if self.async_mode_change_task != None:
-            self.async_mode_change_task.cancel()
-        if self.async_setting_page_task != None: 
-            self.async_setting_page_task.cancel()
+            self.async_mode_change_task.cancel() 
 
     def cancel_display_tasks(self):
         if self.async_display_task != None:
@@ -98,8 +92,10 @@ class ClockClock24:
 
         mode = self.modes[mode_id]
 
+        #flags, so new time does not interrupt mode change number display
         self.input_lock = True
         self.dont_display_time = True
+
         if self.__current_mode != None:
             self.__current_mode.end(False) #"destructor" of the old mode
         self.__current_mode = mode
@@ -115,18 +111,18 @@ class ClockClock24:
         
         await asyncio.sleep(1.2) #so digit is visible for a bit
         
+        #mode change is done, so time can be displayed again
         self.input_lock = False
         self.dont_display_time = False
+
         self.__current_mode = mode
         self.__current_mode.start() # specific initialisation of new mode after display of mode digit is done
 
     def get_mode_id(self):
         return self.current_mode_idx
     
-    
 #endregion
-
-    
+  
 #region ntp
     
     def stop_ntp(self):
@@ -137,7 +133,7 @@ class ClockClock24:
             self.async_ntp_task.cancel()
     
     def start_ntp(self):
-        if self.ntp_module != None:
+        if self.ntp_module != None and self.settings:
             if self.persistent.get_var("NTP enabled"):
                 if not self.timer_running:
                     self.__start_ntp_timer()
@@ -179,7 +175,20 @@ class ClockClock24:
             if(rtc_hour != hour or rtc_minute != minute): #so time animations are definitely displayed
                 if __debug__:
                     print("Forced Display of new time since new ntp time differed")
-                self.alarm_flag = True
+                self.new_minute_alarm_flag = True
           
 #endregion
     
+    def reset_persistent_settings(self): 
+        if __debug__:
+            print("resetting all settings and time") 
+            
+        self.rtc.set_hour_minute(0, 0)
+        self.settings.persistent.reset_flash()
+        
+        if self.ntp_module != None:
+            self.ntp_module.reset_data()
+
+        self.digit_display.number_style_options[1] = self.persistent.get_var("one style")
+        self.digit_display.number_style_options[8] = self.persistent.get_var("eight style")
+        self.alarm_flag = True
