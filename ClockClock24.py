@@ -1,5 +1,5 @@
-from StepperControl import ClockSteppers
-from DigitDisplay import DigitDisplay
+from ClockStepperControl import ClockSteppers
+from ClockDigitDisplay import ClockDigitDisplay
 from DS3231_timekeeper import DS3231_timekeeper
 import uasyncio as asyncio
 from machine import Timer
@@ -8,7 +8,9 @@ from NTPModule import NTPModule
 import OperatingModes.ClockModes as ClockModes
 
 class ClockClock24:
-    button_id = {"mode": 0, "plus": 1, "minus": 2, "next_digit": 3}
+    #plus and minus buttons increment and decrment the currently selected digit in the settings
+    #for example for changing the startup mode
+    button_id = {"next_mode": 0, "prev_mode": 1, "plus": 2, "minus": 3, "next_digit": 4, "prev_digit": 4, "next_page": 5, "prev_page": 6}
 
     def __init__(self):
         # persistent data and config values
@@ -33,7 +35,7 @@ class ClockClock24:
         
         #stepper control
         self.steppers = ClockSteppers(self.settings.module_i2c_bus, self.settings.module_i2c_adr, self.settings.steps_per_rev)
-        self.digit_display = DigitDisplay(self)
+        self.digit_display = ClockDigitDisplay(self)
 
         #list of operation mode objects
         self.modes = [ModeClass(self) for ModeClass in ClockModes.get_mode_list(self)]
@@ -91,16 +93,15 @@ class ClockClock24:
         if __debug__:
             print("New mode:", mode_id)
 
-        mode = self.modes[mode_id]
+        if self.__current_mode != None:
+            self.__current_mode.end() #"destructor" of the old mode
 
+        self.__current_mode = self.modes[mode_id]
+        self.current_mode_idx = mode_id
+        
         #flags, so new time does not interrupt mode change number display
         self.displaying_mode_change = True
 
-        if self.__current_mode != None:
-            self.__current_mode.end() #"destructor" of the old mode
-        self.__current_mode = mode
-        self.current_mode_idx = mode_id
-        
         self.steppers.enable_disable_driver_all(True)
         self.steppers.set_speed_all(self.settings.stepper_speed_fast)
         self.steppers.set_accel_all(self.settings.stepper_accel_fast)
@@ -114,7 +115,6 @@ class ClockClock24:
         #mode change is done, so time can be displayed again
         self.displaying_mode_change = False
 
-        self.__current_mode = mode
         self.__current_mode.start() # specific initialisation of new mode after display of mode digit is done
 
     def get_mode_id(self):
@@ -183,8 +183,10 @@ class ClockClock24:
     def button_handler(self, button_id: int, long_press=False, double_press=False):
         if __debug__:
             print("Button pressed:", button_id, long_press, double_press)
-        if button_id == self.button_id["mode"]:
+        if button_id == self.button_id["next_mode"]:
             self.set_mode((self.current_mode_idx + 1) % len(self.modes))
+        elif button_id == self.button_id["prev_mode"]:
+            self.set_mode((self.current_mode_idx - 1) % len(self.modes))
         else:
             #only pass button press to mode if not currently displaying mode change
             if not self.displaying_mode_change:
@@ -202,7 +204,3 @@ class ClockClock24:
         
         if self.ntp_module != None:
             self.ntp_module.reset_data()
-
-        self.digit_display.number_style_options[1] = self.persistent.get_var("one style")
-        self.digit_display.number_style_options[8] = self.persistent.get_var("eight style")
-        self.alarm_flag = True

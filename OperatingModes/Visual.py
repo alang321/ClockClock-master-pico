@@ -7,8 +7,8 @@ class Visual:
     def __init__(self, clockclock):
         self.clockclock = clockclock
         self.steppers = clockclock.steppers
-        self.stepper_speed = self.clockclock.settings.stepper_speed_default
-        self.stepper_accel = self.clockclock.settings.stepper_accel_default
+        self.stepper_speed = self.clockclock.settings.persistent.get_var("Speed Visual")
+        self.stepper_accel = self.clockclock.settings.persistent.get_var("Accel Visual")
         self.animation_id_lst = self.clockclock.settings.visual_animation_ids
                
         self.random_shuffle(self.animation_id_lst)

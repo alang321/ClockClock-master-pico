@@ -1,4 +1,4 @@
-from DigitDisplay import DigitDisplay
+from ClockDigitDisplay import ClockDigitDisplay
 
 class ShortestPath:
     allowed_as_startup_mode = True
@@ -7,8 +7,8 @@ class ShortestPath:
     def __init__(self, clockclock):
         self.clockclock = clockclock
         self.steppers = clockclock.steppers
-        self.stepper_speed = self.clockclock.settings.stepper_speed_default
-        self.stepper_accel = self.clockclock.settings.stepper_accel_default
+        self.stepper_speed = self.clockclock.settings.persistent.get_var("Speed Visual")
+        self.stepper_accel = self.clockclock.settings.persistent.get_var("Accel Visual")
 
     def start(self):
         self.clockclock.alarm_flag = True
@@ -24,7 +24,7 @@ class ShortestPath:
         self.clockclock.set_accel_all(self.stepper_accel)
         
         digits = [hour//10, hour%10, minute//10, minute%10]
-        self.clockclock.digit_display.display_digits(digits, DigitDisplay.animations["shortest path"])
+        self.clockclock.digit_display.display_digits(digits, ClockDigitDisplay.animations["shortest path"])
         
     def button_click(self, button_id: int, long_press=False, double_press=False):
         return

@@ -1,4 +1,4 @@
-from DigitDisplay import DigitDisplay
+from ClockDigitDisplay import ClockDigitDisplay
 
 class Stealth:
     allowed_as_startup_mode = True
@@ -7,8 +7,8 @@ class Stealth:
     def __init__(self, clockclock):
         self.clockclock = clockclock
         self.steppers = clockclock.steppers
-        self.stepper_speed = self.clockclock.settings.stepper_speed_stealth
-        self.stepper_accel = self.clockclock.settings.stepper_accel_stealth
+        self.stepper_speed = self.clockclock.settings.persistent.get_var("Speed Stealth")
+        self.stepper_accel = self.clockclock.settings.persistent.get_var("Accel Stealth")
         
     def start(self):
         self.clockclock.alarm_flag = True # so a new time is displayed instead of the mode number even before next minute
@@ -30,7 +30,7 @@ class Stealth:
         self.clockclock.set_accel_all(self.stepper_accel)
 
         digits = [hour//10, hour%10, minute//10, minute%10]
-        self.clockclock.digit_display.display_digits(digits, DigitDisplay.animations["stealth"])
+        self.clockclock.digit_display.display_digits(digits, ClockDigitDisplay.animations["stealth"])
     
     def button_click(self, button_id: int, long_press=False, double_press=False):
         return

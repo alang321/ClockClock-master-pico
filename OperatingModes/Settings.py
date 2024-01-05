@@ -1,4 +1,4 @@
-from DigitDisplay import DigitDisplay
+from ClockDigitDisplay import ClockDigitDisplay
 import uasyncio as asyncio
 
 class Settings:
@@ -11,8 +11,7 @@ class Settings:
         self.stepper_speed = self.clockclock.settings.stepper_speed_fast
         self.stepper_accel = self.clockclock.settings.stepper_accel_fast
 
-        self.input_lock = False # turned on during setting spage change
-        self.dont_display_time = False # turned on during setting spage change
+        self.displaying_page_change = False # turned on during settings page change
 
         self.__persistent_data_changed_flag = False # flag set to true when persistent data is changed
 
@@ -62,13 +61,14 @@ class Settings:
                 self.__current_page.new_time(hour, minute)
         
     def button_click(self, button_id: int, long_press=False, double_press=False):
-        
-        if button_id == self.clockclock.button_id["next_digit"] and long_press:
-            self.set_mode((self.current_mode_idx + 1) % len(self.modes))
+        if button_id == self.clockclock.button_id["next_page"]:
+            self.change_page(1)
+        elif button_id == self.clockclock.button_id["prev_page"]:
+            self.change_page(-1)
         else:
-            if self.__current_mode != None:
-                self.__current_mode.button_handler(button_id, long_press, double_press)
-        return
+            if not self.displaying_page_change:
+                if self.__current_page != None:
+                    self.__current_page.button_handler(button_id, long_press, double_press)
     
 #region setting page management
     
@@ -81,36 +81,29 @@ class Settings:
         self.__cancel_tasks()
 
     def change_page(self, direction):
-        if not self.input_lock:
-            self.__cancel_tasks()
-            self.async_setting_page_change_task = asyncio.create_task(self.__set_page((self.__current_page + direction) % len(self.settings_pages)))
+        self.set_page((self.__current_page + direction) % len(self.settings_pages))
   
     def set_page(self, idx):
-        if not self.input_lock:
-            self.__cancel_tasks()
-            self.async_setting_page_change_task = asyncio.create_task(self.__set_page(idx))
+        self.__cancel_tasks()
+        self.async_setting_page_change_task = asyncio.create_task(self.__set_page(idx))
 
     async def __set_page(self, idx):
         self.__current_page_idx = idx
         if __debug__:
             print("settings set page:", self.__current_page)
-            
-        if self.__reset_settings_flag:
-            self.reset_settings()
-        
+
         #page number animation
-        self.input_lock = True
-        self.dont_display_time = True
+        self.displaying_page_change = True
 
         if self.__current_page != None:
             self.__current_page.end()
+
         self.clockclock.digit_display.display_mode(self.__current_page, True)
         self.clockclock.movement_done_event.clear() # wait until movement is completed
         await self.clockclock.movement_done_event.wait()
         await asyncio.sleep(.8) #so digit is visible for a bit
 
-        self.input_lock = False
-        self.dont_display_time = False
+        self.displaying_page_change = True
 
         self.__current_page = self.settings_pages[self.__current_page_idx]
         self.__current_page.start()  
@@ -122,17 +115,26 @@ class Settings:
         self.clockclock.reset_persistent_settings()
 
 class SettingsPageNumberStyle:
-    #constructor
+    def __init__(self, clockclock):
+        self.clockclock = clockclock
+        self.steppers = clockclock.steppers
+        self.stepper_speed = self.clockclock.settings.stepper_speed_fast
+        self.stepper_accel = self.clockclock.settings.stepper_accel_fast
      
-    #open page
+    def start(self):
+        return
      
-    #close page
+    def end(self):
+        return
      
-    #display function
+    def update_display():
+        return
+    
+    def new_time(self, hour, minute):
+         return
      
-    #new time handler
-     
-    #button handlers
+    def button_handler(self, button_id: int, long_press=False, double_press=False):
+        return
 
 
 class SettingsPageTimeSetting:
@@ -351,7 +353,7 @@ class SettingsPageReset:
     def __settings_display_time(self, hour, minute):
         self.cancel_display_tasks()
         digits = [hour // 10, hour % 10, minute // 10, minute % 10]
-        self.digit_display.display_digits(digits, DigitDisplay.animations["shortest path"])
+        self.digit_display.display_digits(digits, ClockDigitDisplay.animations["shortest path"])
         
     def __settings_time_format_disp(self):
         if bool(self.persistent.get_var("12 hour format")):

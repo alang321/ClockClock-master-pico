@@ -22,17 +22,20 @@ class PersistentStorage:
         self.read_flash()
         
     def set_var(self, name, value):
-        ind = self.__get_index(name)
+        ind = self.get_index(name)
         check_func = self.__var_check_funcs[ind]
         if check_func != None:
             if check_func(value):
                 self.__var_values[ind] = value
     
     def get_var(self, name):
-        ind = self.__get_index(name)
+        ind = self.get_index(name)
         return self.__var_values[ind]
+    
+    def get_var_by_index(self, index):
+        return self.__var_values[index]
             
-    def __get_index(self, name):
+    def get_index(self, name):
         return self.__var_names.index(name)
             
     def read_flash(self):

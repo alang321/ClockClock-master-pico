@@ -7,7 +7,7 @@ from ClockSettings import ClockSettings
 # button handlers
 def btn_mode(pin):
     global clockclock
-    clockclock.button_handler(ClockClock24.button_id["mode"])
+    clockclock.button_handler(ClockClock24.button_id["next_mode"])
         
 def btn_plus(pin):
     global clockclock
@@ -23,12 +23,10 @@ def btn_next(pin):
             
 def btn_next_long(pin):
     global clockclock
-    clockclock.button_handler(ClockClock24.button_id["next_digit"], long_press=True)
+    clockclock.button_handler(ClockClock24.button_id["next_page"])
 
 #main loop
 async def main_loop():
-    global alarm_flag
-    
     button_mode = OneButton(19, True, enable_long_press=False, enable_double_click=False)
     button_plus = OneButton(21, True, enable_long_press=False, enable_double_click=False)
     button_minus = OneButton(18, True, enable_long_press=False, enable_double_click=False)

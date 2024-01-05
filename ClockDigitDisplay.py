@@ -2,60 +2,57 @@ import math
 import random
 import uasyncio as asyncio
 
-class DigitDisplay:
-    """
-    A class used to display digits given a list of steppers (might be over fragemntation of code idk)
-
-    ...
-
-    Attributes
-    ----------
-    digit_display_indices : List[int]
-        the clk_ind (0-23) of for each digit, starts at top lef tof digit, row first
-    digits_pointer_pos_frac : List[float]
-        frational position of each stepper ofr each digit
-    digits_pointer_pos_abs : List[int]
-        position in steps of each stepper for each digit
-    animations : dict
-        dictionary that contains names of animation modes and translates to indices
-    clockclock
-        a ClockClock24 obj, basically the "master"
-    minute_steppers : List[ClockStepper]
-        list of 24 stepper objs containing minute pointers from top left row first
-    hour_steppers : List[ClockStepper]
-        list of 24 stepper objs containing hour pointers
-    steps_full_rev : int
-        number of steps a stepper needs to make one revolution
-
-    Methods
-    -------
-    display_digit(field, number, direction, extra_revs = 0)
-        Display a one digit on the clock
-        
-    display_digits(digits, animation = 0)
-        Display all digits on the clock with animation
-    """
-    digit_display_indices = [[0, 1, 8, 9, 16, 17], [2, 3, 10, 11, 18, 19], [4, 5, 12, 13, 20, 21], [6, 7, 14, 15, 22, 23]]
-    column_indices = [[0, 8, 16], [1, 9, 17], [2, 10, 18], [3, 11, 19], [4, 12, 20], [5, 13, 21], [6, 14, 22], [7, 15, 23]]
-    row_indices = [[0, 1, 2, 3, 4, 5, 6, 7], [8, 9, 10, 11, 12, 13, 14, 15], [16, 17, 18, 19, 20, 21, 22, 23]]
-
-    row_module_indices = [[0, 1], [2, 3], [4, 5]]
-    
+#a weird class that pretty much just prvoides the correct pointer positions for each digit
+#takes into account the current settings such as one style and eight style
+class ClockDigitPointerPositions:
     # fractional position of the pointer, first sublist is hour hand second is minute hand, 0.0 at the 12 o clock position and 0.5 at 6 o clock
     # from top left, rows first
-    digits_pointer_pos_frac =  [[[[0.5, 0.5, 0.5, 0.5, 0.25, 0.75],    [0.25, 0.75, 0, 0, 0, 0]]],                 # 0
-                                [[[0.625, 0.5, 0.125, 0, 0.625, 0],    [0.625, 0.625, 0.125, 0.5, 0.625, 0]],      # 1 - with angled line at top
-                                     [[0.625, 0.5, 0.625, 0, 0.625, 0],    [0.625, 0.5, 0.625, 0.5, 0.625, 0]]],   # 1 - classic seven segment diplay straight line
-                                [[[0.25, 0.75, 0.5, 0.75, 0.25, 0.75], [0.25, 0.5, 0.25, 0, 0, 0.75]]],            # 2
-                                [[[0.25, 0.75, 0.25, 0, 0.25, 0.75],   [0.25, 0.5, 0.25, 0.75, 0.25, 0]]],         # 3
-                                [[[0.5, 0.5, 0, 0, 0.625, 0],          [0.5, 0.5, 0.25, 0.5, 0.625, 0]]],          # 4
-                                [[[0.25, 0.75, 0, 0.5, 0.25, 0],       [0.5, 0.75, 0.25, 0.75, 0.25, 0.75]]],      # 5
-                                [[[0.5, 0.75, 0, 0.75, 0, 0],          [0.25, 0.75, 0.5, 0.5, 0.25, 0.75]]],       # 6
-                                [[[0.25, 0.5, 0.625, 0.5, 0.625, 0],   [0.25, 0.75, 0.625, 0, 0.625, 0]]],         # 7
-                                [[[0.5, 0.5, 0, 0, 0, 0],              [0.25, 0.75, 0.25, 0.75, 0.25, 0.75]],      # 8 - upper circle
-                                     [[0.25, 0.75, 0.5, 0.5, 0, 0],        [0.5, 0.5, 0.25, 0.75, 0.25, 0.75]],    # 8 - lower circle
-                                     [[0.5, 0.5, 0.25, 0, 0, 0],           [0.25, 0.75, 0.5, 0.75, 0.25, 0.75]]],  # 8 - mirrored s
-                                [[[0.5, 0.5, 0.25, 0.5, 0.25, 0],      [0.25, 0.75, 0, 0, 0.25, 0.75]]]]           # 9  
+    digits_pointer_pos =  [[[[0.5, 0.5, 0.5, 0.5, 0.25, 0.75],    [0.25, 0.75, 0, 0, 0, 0]]],                 # 0
+                            [[[None, 0.5, 0.125, 0, None, 0],    [None, None, 0.125, 0.5, None, 0]],      # 1 - with angled line at top
+                                    [[None, 0.5, None, 0, None, 0],    [None, 0.5, None, 0.5, None, 0]]],   # 1 - classic seven segment diplay straight line
+                            [[[0.25, 0.75, 0.5, 0.75, 0.25, 0.75], [0.25, 0.5, 0.25, 0, 0, 0.75]]],            # 2
+                            [[[0.25, 0.75, 0.25, 0, 0.25, 0.75],   [0.25, 0.5, 0.25, 0.75, 0.25, 0]]],         # 3
+                            [[[0.5, 0.5, 0, 0, None, 0],          [0.5, 0.5, 0.25, 0.5, None, 0]]],          # 4
+                            [[[0.25, 0.75, 0, 0.5, 0.25, 0],       [0.5, 0.75, 0.25, 0.75, 0.25, 0.75]]],      # 5
+                            [[[0.5, 0.75, 0, 0.75, 0, 0],          [0.25, 0.75, 0.5, 0.5, 0.25, 0.75]]],       # 6
+                            [[[0.25, 0.5, None, 0.5, None, 0],   [0.25, 0.75, None, 0, None, 0]]],         # 7
+                            [[[0.5, 0.5, 0, 0, 0, 0],              [0.25, 0.75, 0.25, 0.75, 0.25, 0.75]],      # 8 - upper circle
+                                    [[0.25, 0.75, 0.5, 0.5, 0, 0],        [0.5, 0.5, 0.25, 0.75, 0.25, 0.75]],    # 8 - lower circle
+                                    [[0.5, 0.5, 0.25, 0, 0, 0],           [0.25, 0.75, 0.5, 0.75, 0.25, 0.75]]],  # 8 - mirrored s
+                            [[[0.5, 0.5, 0.25, 0.5, 0.25, 0],      [0.25, 0.75, 0, 0, 0.25, 0.75]]]]           # 9  
+
+    def __init__(self, clockclock):
+        self.clockclock = clockclock
+        self.steps_full_rev = self.clockclock.settings.steps_full_rev
+
+        #excuse this horribleness
+        #just converts the fractional pointer positions to absolute positions in steps
+        #while keeping None values for digits that have a configurable zero position there
+        self.digits_pointer_pos_abs = self.digits_pointer_pos_abs = [[[[None if frac is None else int(frac * self.steps_full_rev) for frac in hour_minute] for hour_minute in digit_option] for digit_option in number] for number in self.digits_pointer_pos]
+
+        self.persistent_idx_eight_style = self.clockclock.settings.persistent.get_index("eight style")
+        self.persistent_idx_one_style = self.clockclock.settings.persistent.get_index("one style")
+        self.persistent_idx_idle_pos = self.clockclock.settings.persistent.get_index("Idle Pointer Pos")
+
+        self.default_positions_lst = [int(x * 0.25 * self.steps_full_rev) for x in range(8)]
+        self.number_style_options = [0] * 10
+
+    def get_digit(self, digit):
+        default_pos_abs = self.default_positions_lst[self.clockclock.settings.persistent.get_var_by_index(self.persistent_idx_idle_pos)]
+
+        self.number_style_options[1] = self.clockclock.settings.persistent.get_var_by_index(self.persistent_idx_one_style)
+        self.number_style_options[8] = self.clockclock.settings.persistent.get_var_by_index(self.persistent_idx_eight_style)
+
+        tmp = self.digits_pointer_pos_abs[digit][self.number_style_options[digit]]
+        return [default_pos_abs if pos is None else pos for pos in tmp]
+
+    
+
+class ClockDigitDisplay:
+    digit_field_indices = [[0, 1, 8, 9, 16, 17], [2, 3, 10, 11, 18, 19], [4, 5, 12, 13, 20, 21], [6, 7, 14, 15, 22, 23]]
+    centered_digit_field_indices = [[1, 2, 9, 10, 17, 18], [3, 4, 11, 12, 19, 20], [5, 6, 13, 14, 21, 22]]
+    column_indices = [[0, 8, 16], [1, 9, 17], [2, 10, 18], [3, 11, 19], [4, 12, 20], [5, 13, 21], [6, 14, 22], [7, 15, 23]]
+    row_indices = [[0, 1, 2, 3, 4, 5, 6, 7], [8, 9, 10, 11, 12, 13, 14, 15], [16, 17, 18, 19, 20, 21, 22, 23]]
     
     #animations modes for position transitions
     animations = {
@@ -87,10 +84,9 @@ class DigitDisplay:
         """
         self.clockclock = clockclock
         
-        self.number_style_options = [0, self.clockclock.settings.persistent.get_var("one style"), 0, 0, 0, 0, 0, 0, self.clockclock.settings.persistent.get_var("eight style"), 0]
-        
         self.hour_steppers = self.clockclock.steppers.hour_steppers
         self.minute_steppers = self.clockclock.steppers.minute_steppers
+        self.stepper_clocks = self.clockclock.steppers.stepper_clocks
         
         self.steps_full_rev = self.clockclock.settings.steps_full_rev
         
@@ -114,37 +110,52 @@ class DigitDisplay:
             self.new_pose_uhrenspiel
           ]
         
-        self.digits_pointer_pos_abs = [[[[int(frac * self.steps_full_rev) for frac in hour_minute] for hour_minute in digit_option] for digit_option in number] for number in DigitDisplay.digits_pointer_pos_frac]
+        self.digit_pointer_positions = ClockDigitPointerPositions(self.clockclock)
         
-    def __get_digit_pos_abs(self, digit):
-        
-        return self.digits_pointer_pos_abs[digit][self.number_style_options[digit]]
-        
-    def display_digit(self, field, digit, direction, extra_revs = 0):
-        """Display a single digit on the clock
-        
-        Parameters
-            the field where the number should be displayed 0-3
-        digit : int
-            the number to display
-        direction : int
-            -1 ccw, 1 cw, 0 whichever is shorter
-        extra_revs : int, optional
-            how many extra revolutions should be made, ignored when direction is 0 (default is 0)
-        """
-            
-        if extra_revs == 0 or direction == 0:
-            for sub_index, clk_index in enumerate(self.digit_display_indices[field]):
-                self.hour_steppers[clk_index].move_to(self.__get_digit_pos_abs(digit)[0][sub_index], direction)
-                self.minute_steppers[clk_index].move_to(self.__get_digit_pos_abs(digit)[1][sub_index], direction)
-        else:
-            for sub_index, clk_index in enumerate(self.digit_display_indices[field]):
-                self.hour_steppers[clk_index].move_to_extra_revs(self.__get_digit_pos_abs(digit)[0][sub_index], direction, extra_revs)
-                self.minute_steppers[clk_index].move_to_extra_revs(self.__get_digit_pos_abs(digit)[1][sub_index], direction, extra_revs)
-                
-    def display_mode(self, mode_id, left_align=False):
-        mode_id += 1
+    def display_mode(self, mode_id):
+        mode_id += 1 # so modes are displayed from 1 not from 0
+        mode_id %= 10000
         mode_string = str(mode_id)
+        digit_count = len(str(mode_string))
+
+        default_pos_left = int(self.steps_full_rev * 0.75)
+        default_pos_right = int(self.steps_full_rev * 0.25)
+        new_positions_0 = [default_pos_left] * 24
+        new_positions_1 = [default_pos_left] * 24
+
+        #turn all clocks on the right side to the right
+        for col in self.column_indices[4:]:
+            for clk_index in col:
+                new_positions_0[clk_index] = default_pos_right
+                new_positions_1[clk_index] = default_pos_right
+
+        #make the digits always centered
+        if digit_count == 1:
+            field_array = self.centered_digit_field_indices
+            field_indeces = [1]
+        elif digit_count == 2:
+            field_array = self.digit_field_indices
+            field_indeces = [1, 2]
+        elif digit_count == 3:
+            field_array = self.centered_digit_field_indices
+            field_indeces = [0, 1, 2]
+        elif digit_count == 4:
+            field_array = self.digit_field_indices
+            field_indeces = [0, 1, 2, 3]
+            
+        for digit_id, field_idx in enumerate(field_indeces):
+            digit = int(mode_string[digit_id])
+            
+            digit_pointer_positions = self.digit_pointer_positions.get_digit(digit)
+            for sub_index, clk_index in enumerate(field_array[field_idx]):
+                new_positions_0[clk_index] = digit_pointer_positions[0][sub_index]
+                new_positions_1[clk_index] = digit_pointer_positions[1][sub_index]
+                
+        self.__new_pose_stealth(new_positions_0, new_positions_1)
+                 
+    def display_number(self, number, left_align=False):
+        number %= 10000
+        mode_string = str(number)
         digit_count = len(str(mode_string))
         
         default_pos = int(self.steps_full_rev * 0.625)
@@ -160,9 +171,10 @@ class DigitDisplay:
         for digit_id, field in enumerate(field_ids):
             digit = int(mode_string[digit_id])
                 
-            for sub_index, clk_index in enumerate(self.digit_display_indices[field]):
-                new_positions_0[clk_index] = self.__get_digit_pos_abs(digit)[0][sub_index]
-                new_positions_1[clk_index] = self.__get_digit_pos_abs(digit)[1][sub_index]
+            digit_pointer_positions = self.digit_pointer_positions.get_digit(digit)
+            for sub_index, clk_index in enumerate(self.digit_field_indices[field]):
+                new_positions_0[clk_index] = digit_pointer_positions[0][sub_index]
+                new_positions_1[clk_index] = digit_pointer_positions[1][sub_index]
                 
         self.__new_pose_stealth(new_positions_0, new_positions_1)
                 
@@ -180,9 +192,10 @@ class DigitDisplay:
         new_positions_m = [0] * 24
         
         for field, digit in enumerate(digits):
-            for sub_index, clk_index in enumerate(DigitDisplay.digit_display_indices[field]):
-                new_positions_h[clk_index] = self.__get_digit_pos_abs(digit)[0][sub_index]
-                new_positions_m[clk_index] = self.__get_digit_pos_abs(digit)[1][sub_index]
+            digit_pointer_positions = self.digit_pointer_positions.get_digit(digit)
+            for sub_index, clk_index in enumerate(ClockDigitDisplay.digit_field_indices[field]):
+                new_positions_h[clk_index] = digit_pointer_positions[0][sub_index]
+                new_positions_m[clk_index] = digit_pointer_positions[1][sub_index]
         
         self.clockclock.async_display_task = asyncio.create_task(
             self.animation_handlers[animation_id](new_positions_h, new_positions_m))
@@ -217,36 +230,7 @@ class DigitDisplay:
                 
     def __new_pose_stealth(self, new_positions_0, new_positions_1):
         for clk_index in range(24):
-            a_pos = new_positions_0[clk_index]
-            b_pos = new_positions_1[clk_index]
-            m = self.minute_steppers[clk_index]
-            h = self.hour_steppers[clk_index]
-            m_pos = m.current_target_pos
-            h_pos = h.current_target_pos
-            
-            #if both steppers are equal to either a or b dont do anything
-            if (m_pos == a_pos and h_pos == b_pos):
-                h.move_to(b_pos, 0)
-                m.move_to(a_pos, 0)
-            elif (m_pos == b_pos and h_pos == a_pos):
-                h.move_to(a_pos, 0)
-                m.move_to(b_pos, 0)
-            elif m_pos == a_pos: #if one is equal move the other, minute priority because hour is usually quieter for some reason
-                h.move_to(b_pos, 0)
-                m.move_to(a_pos, 0)
-            elif m_pos == b_pos:
-                h.move_to(a_pos, 0)
-                m.move_to(b_pos, 0)
-            elif h_pos == a_pos:
-                m.move_to(b_pos, 0)
-                h.move_to(a_pos, 0)
-            elif h_pos == b_pos:
-                m.move_to(a_pos, 0)
-                h.move_to(b_pos, 0)
-            #if neither one is equal move both
-            else:
-                m.move_to(a_pos, 0)
-                h.move_to(b_pos, 0)
+            self.stepper_clocks[clk_index].moveTo_minimize_movement(new_positions_0[clk_index], new_positions_1[clk_index])
     
     async def new_pose_extra_revs(self, new_positions_h, new_positions_m, direction=0, extra_revs=2):
         """Display a series of new positions on the clock, move stepper the shortest path to its destianation
@@ -295,8 +279,8 @@ class DigitDisplay:
         start_pos_m = int(self.steps_full_rev * start_ang)
         start_pos_h = int(self.steps_full_rev * (start_ang - 0.5))
         
-        self.clockclock.move_to_hour(start_pos_h, 0)
-        self.clockclock.move_to_minute(start_pos_m, 0)
+        self.clockclock.steppers.move_to_all(start_pos_h, 0, minute=False)
+        self.clockclock.steppers.move_to_all(start_pos_m, 0, hour=False)
 
         self.clockclock.movement_done_event.clear()
         await self.clockclock.movement_done_event.wait()
@@ -323,7 +307,7 @@ class DigitDisplay:
         start_ang = random.choice([0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875])
         start_pos = int(self.steps_full_rev * start_ang)
         
-        self.clockclock.move_to_all(start_pos, 0)
+        self.clockclock.steppers.move_to_all(start_pos, 0)
         
         self.clockclock.movement_done_event.clear()
         await self.clockclock.movement_done_event.wait()
@@ -382,8 +366,8 @@ class DigitDisplay:
         await self.clockclock.movement_done_event.wait()
 
         delay_per_distance = 400 # ms
-        start_delays = [0] * len(DigitDisplay.column_indices)
-        col_indices = list(range(len(DigitDisplay.column_indices)))
+        start_delays = [0] * len(ClockDigitDisplay.column_indices)
+        col_indices = list(range(len(ClockDigitDisplay.column_indices)))
         #calculate time delay of each column to point to scale start time    
         for col_index in col_indices:
             loc_y = -col_index
@@ -392,7 +376,7 @@ class DigitDisplay:
             
             start_delays[col_index] = int(distance * delay_per_distance)
 
-        parallel_sorted = sorted(zip(start_delays, DigitDisplay.column_indices))
+        parallel_sorted = sorted(zip(start_delays, ClockDigitDisplay.column_indices))
         sorted_col = [x for y, x in parallel_sorted]
         sorted_delays = [y for y, x in parallel_sorted]
                    
@@ -509,8 +493,6 @@ class DigitDisplay:
         point_1 = random.choice([[-1, -1.5], [0.5, 0.5], [-2.5, 0.5]])
         point_2 = random.choice([[-1, -5.5], [0.5, -7.5], [-2.5, -7.5]])
         q_locations = [point_1, point_2]
-        
-        
         
         for col_index, col in enumerate(self.column_indices):
             if col_index != 0:

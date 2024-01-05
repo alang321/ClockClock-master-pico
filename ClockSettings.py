@@ -1,6 +1,6 @@
 
 from lib.PersistentStorage import PersistentStorage
-from DigitDisplay import DigitDisplay
+from ClockDigitDisplay import ClockDigitDisplay
 import machine
 from OperatingModes.NightDay import NightDay
 from OperatingModes.Visual import Visual
@@ -21,6 +21,10 @@ class ClockSettings:
         default_startup_mode = NightDay
         default_day_mode = Visual
         default_night_mode = Stealth
+        
+        default_startup_mode_idx = ClockModes.get_mode_idx(default_startup_mode)
+        default_day_mode_idx = ClockModes.get_mode_idx(default_day_mode)
+        default_night_mode_idx = ClockModes.get_mode_idx(default_night_mode)
 
         if not default_startup_mode.allowed_as_startup_mode:
             raise Exception("default startup mode is not allowed as startup mode")
@@ -31,13 +35,19 @@ class ClockSettings:
         
         var_lst = [PersistentStorage.persistent_var("night start", [21, 0], lambda a : (0 <= a[0] <= 23 and 0 <= a[1] <= 59)), # todo fix
                    PersistentStorage.persistent_var("night end", [9, 30], lambda a : (0 <= a[0] <= 23 and 0 <= a[1] <= 59)),
-                   PersistentStorage.persistent_var("night mode", default_night_mode, lambda a : True if a in self.__nightmode_allowed_modes else False),
-                   PersistentStorage.persistent_var("day mode", default_day_mode, lambda a : True if a in self.__nightmode_allowed_modes else False),
+                   PersistentStorage.persistent_var("night mode", default_night_mode_idx, lambda a : True if a in self.__nightmode_allowed_modes else False),
+                   PersistentStorage.persistent_var("day mode", default_day_mode_idx, lambda a : True if a in self.__nightmode_allowed_modes else False),
                    PersistentStorage.persistent_var("one style", 0, lambda a : True if a in [0, 1] else False),
                    PersistentStorage.persistent_var("eight style", 0, lambda a : True if a in [0, 1, 2] else False),
-                   PersistentStorage.persistent_var("default mode", default_startup_mode, lambda a : True if a in self.__startup_allowed_modes else False),
+                   PersistentStorage.persistent_var("default mode", default_startup_mode_idx, lambda a : True if a in self.__startup_allowed_modes else False),
                    PersistentStorage.persistent_var("12 hour format", 0, lambda a : True if a in [0, 1] else False),
-                   PersistentStorage.persistent_var("NTP enabled", 0, lambda a : True if a in [0, 1] else False)] # 0 for 24 hour format, 1 for twelve hour formaty
+                   PersistentStorage.persistent_var("NTP enabled", 0, lambda a : True if a in [0, 1] else False),
+                   PersistentStorage.persistent_var("Idle Pointer Pos", 5, lambda a : True if (a >= 0 and a <= 7) else False),
+                   PersistentStorage.persistent_var("Speed Stealth", 105, lambda a : True if (a >= 5 and a <= 999) else False),
+                   PersistentStorage.persistent_var("Accel Stealth", 60, lambda a : True if (a >= 5 and a <= 999) else False),
+                   PersistentStorage.persistent_var("Speed Visual", 585, lambda a : True if (a >= 5 and a <= 999) else False),
+                   PersistentStorage.persistent_var("Accel Visual", 210, lambda a : True if (a >= 5 and a <= 999) else False),
+                   PersistentStorage.persistent_var("Visual Animation Ids", 210, lambda a : True if (a >= 5 and a <= 999) else False)] # 0 for 24 hour format, 1 for twelve hour formaty
         
         self.persistent = PersistentStorage(filename, var_lst)
 
@@ -50,8 +60,6 @@ class ClockSettings:
 
         i2c1 = machine.I2C(1, sda=machine.Pin(14), scl=machine.Pin(3), freq=100000)
         i2c0 = machine.I2C(0, sda=machine.Pin(16), scl=machine.Pin(17), freq=100000)
-
-
 
         self.module_i2c_bus = [i2c1, i2c0, # the bus on which the module is
                         i2c1, i2c0, 
@@ -68,33 +76,30 @@ class ClockSettings:
         self.ntp_timeout_s = 180 # s, for how long the ntp mopdule tries to retrieve the ntp
         self.ntp_validity_s = self.ntp_timeout_s #s, for how long the ntp stays valid in the ntp module after receving a ntp time
 
+        #used during settings mode
         self.stepper_speed_fast = 700
         self.stepper_accel_fast = 450
 
-        #normal speed used in most modes
+        #used during mode change etc
         self.stepper_speed_default = 585
         self.stepper_accel_default = 210
-
-        #used in stealth mode
-        self.stepper_speed_stealth = 105
-        self.stepper_accel_stealth = 60
 
         #used in analog mode
         self.stepper_speed_analog = 30
         self.stepper_accel_analog = 20
 
         #which animations to use in the viusal mode
-        self.visual_animation_ids = [DigitDisplay.animations["extra revs"], #these get shuffled randomly when ever end of list is reached
-                                DigitDisplay.animations["straight wave"],
-                                DigitDisplay.animations["opposing pointers"],
-                                DigitDisplay.animations["focus"],
-                                DigitDisplay.animations["opposites"],
-                                #DigitDisplay.animations["equipotential"],
-                                DigitDisplay.animations["speedy clock"],
-                                DigitDisplay.animations["random"],
-                                DigitDisplay.animations["opposing wave"],
-                                DigitDisplay.animations["circle"],
-                                DigitDisplay.animations["smaller bigger"],
-                                DigitDisplay.animations["small circles"],
-                                #DigitDisplay.animations["uhrenspiel"]
-                                ]
+        self.visual_animation_ids = [ClockDigitDisplay.animations["extra revs"], #these get shuffled randomly when ever end of list is reached
+                                    ClockDigitDisplay.animations["straight wave"],
+                                    ClockDigitDisplay.animations["opposing pointers"],
+                                    ClockDigitDisplay.animations["focus"],
+                                    ClockDigitDisplay.animations["opposites"],
+                                    #DigitDisplay.animations["equipotential"],
+                                    ClockDigitDisplay.animations["speedy clock"],
+                                    ClockDigitDisplay.animations["random"],
+                                    ClockDigitDisplay.animations["opposing wave"],
+                                    ClockDigitDisplay.animations["circle"],
+                                    ClockDigitDisplay.animations["smaller bigger"],
+                                    ClockDigitDisplay.animations["small circles"],
+                                    #DigitDisplay.animations["uhrenspiel"]
+                                    ]
