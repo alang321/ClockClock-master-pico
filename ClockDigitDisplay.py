@@ -558,17 +558,23 @@ class ClockDigitDisplay:
             optional parameter for extra revs
         """
         ms_delay = 400
-        oldspeed = self.clockclock.current_speed
-        hour_speed = int(self.clockclock.current_speed * 0.38)
+
+        if self.clockclock.current_mode is not None:
+            oldspeed = self.clockclock.current_mode.stepper_speed
+        else:
+            #shouldnt happen but w/e
+            oldspeed = self.clockclock.settings.stepper_speed_default
+
+        hour_speed = int(oldspeed * 0.38)
         
-        self.clockclock.set_speed_hour(hour_speed)
+        self.clockclock.steppers.set_speed_all(hour_speed, minute=False)
             
         for col_index, col in enumerate(self.column_indices):
             if col_index != 0:
                 try:
                     await asyncio.sleep_ms(ms_delay)
                 except asyncio.CancelledError:
-                    self.clockclock.set_speed_hour(oldspeed) # gets called only when task is cancelled
+                    self.clockclock.steppers.set_speed_all(oldspeed, minute=False) # gets called only when task is cancelled
                     raise
                 
             for clk_index in col:
@@ -579,7 +585,7 @@ class ClockDigitDisplay:
         try:
             await self.clockclock.movement_done_event.wait()
         finally:
-            self.clockclock.set_speed_hour(oldspeed) #always gets called, even when task is cancelled
+            self.clockclock.steppers.set_speed_all(oldspeed, minute=False) #always gets called, even when task is cancelled
 
     async def new_pose_random(self, new_positions_h, new_positions_m):
         """all clocks move to unique radnom position, once all clocks reach the move to correct one with shortest path
@@ -631,7 +637,7 @@ class ClockDigitDisplay:
         start_pos = 0
         end_pos = int(self.steps_full_rev * 0.5)
 
-        self.clockclock.move_to_all(start_pos, 0)
+        self.clockclock.steppers.move_to_all(start_pos, 0)
 
         self.clockclock.movement_done_event.clear()
         await self.clockclock.movement_done_event.wait()
@@ -671,7 +677,7 @@ class ClockDigitDisplay:
             start_pos = int(self.steps_full_rev * 0.25)
             column_indices = reversed(self.column_indices)
 
-        self.clockclock.move_to_all(start_pos, 0)
+        self.clockclock.steppers.move_to_all(start_pos, 0)
 
         self.clockclock.movement_done_event.clear()
         await self.clockclock.movement_done_event.wait()
@@ -854,8 +860,13 @@ class ClockDigitDisplay:
         new_positions_m : List[int]
             the positions to display for hour steppers, should int arrays of length 24
         """
-        oldspeed = self.clockclock.current_speed
-        oldaccel = self.clockclock.current_accel
+        if self.clockclock.current_mode is not None:
+            oldspeed = self.clockclock.current_mode.stepper_speed
+            oldaccel = self.clockclock.current_mode.stepper_accel
+        else:
+            #shouldnt happen but w/e
+            oldspeed = self.clockclock.settings.stepper_speed_default
+            oldaccel = self.clockclock.steppers.stepper_accel_default
         
         # these values are generated with a scipy script
         # simulating a damped pendulum and taking peak accel and speed values for each period
@@ -864,13 +875,14 @@ class ClockDigitDisplay:
         startpos_m = int(self.steps_full_rev - 864)
         targetpos_m = [int(self.steps_full_rev/2) + (int(self.steps_full_rev/2) - i) for i in targetpos_h]
         speed = [int(i * 0.9) for i in [1000, 511, 224, 99]]
-        accel = [int(i * 0.9) for i in [1422, 1072, 490, 217]]
+        #accel = [int(i * 0.9) for i in [1422, 1072, 490, 217]]
         
         self.clockclock.steppers.move_to_all(startpos_h, 0, minute=False)
         self.clockclock.steppers.move_to_all(startpos_m, 0, hour=False)
         
         self.clockclock.movement_done_event.clear()
         await self.clockclock.movement_done_event.wait()
+
         self.clockclock.steppers.set_accel_all(750)
         
         for i in range(len(speed)):

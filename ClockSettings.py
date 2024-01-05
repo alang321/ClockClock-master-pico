@@ -46,8 +46,7 @@ class ClockSettings:
                    PersistentStorage.persistent_var("Speed Stealth", 105, lambda a : True if (a >= 5 and a <= 999) else False),
                    PersistentStorage.persistent_var("Accel Stealth", 60, lambda a : True if (a >= 5 and a <= 999) else False),
                    PersistentStorage.persistent_var("Speed Visual", 585, lambda a : True if (a >= 5 and a <= 999) else False),
-                   PersistentStorage.persistent_var("Accel Visual", 210, lambda a : True if (a >= 5 and a <= 999) else False),
-                   PersistentStorage.persistent_var("Visual Animation Ids", 210, lambda a : True if (a >= 5 and a <= 999) else False)] # 0 for 24 hour format, 1 for twelve hour formaty
+                   PersistentStorage.persistent_var("Accel Visual", 210, lambda a : True if (a >= 5 and a <= 999) else False)] # 0 for 24 hour format, 1 for twelve hour formaty
         
         self.persistent = PersistentStorage(filename, var_lst)
 

@@ -6,6 +6,11 @@ class NightDay:
         self.clockclock = clockclock
         self.steppers = clockclock.steppers
 
+        #doesnt make a ton of sense to have these here, but they are needed for each mode for some animations that change the speed
+        #is overwritten once new time handler is called
+        self.stepper_speed = self.clockclock.settings.stepper_speed_default
+        self.stepper_accel = self.clockclock.settings.stepper_accel_default
+
         self.night_mode = night_mode
         self.day_mode = day_mode
         
@@ -52,11 +57,15 @@ class NightDay:
                 self.end()
                 self.current_mode = self.night_mode
                 self.current_mode.start()
+                self.stepper_speed = self.current_mode.stepper_speed
+                self.stepper_accel = self.current_mode.stepper_accel
         else:
             if not isinstance(self.current_mode, self.day_mode):
                 self.end()
                 self.current_mode = self.day_mode
                 self.current_mode.start()
+                self.stepper_speed = self.current_mode.stepper_speed
+                self.stepper_accel = self.current_mode.stepper_accel
 
         if self.current_mode != None:
             self.current_mode.new_time(hour, minute)

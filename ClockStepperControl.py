@@ -16,6 +16,9 @@ class ClockSteppers:
         self.minute_steppers = [stepper for stepper_list in (module.minute_steppers for module in self.stepper_modules) for stepper in stepper_list]
         self.hour_steppers = [stepper for stepper_list in (module.hour_steppers for module in self.stepper_modules) for stepper in stepper_list]
 
+        self.current_speed = -1 #will get set in init function of ClockCLOCK"$ module via set_mode_all
+        self.current_accel = -1
+
     def enable_disable_driver_all(self, enable_disable: bool):
         """
         true to enable driver of module
@@ -33,6 +36,7 @@ class ClockSteppers:
 
     def set_speed_all(self, speed: int, minute=True, hour=True):
         if hour == minute:
+            self.current_speed = speed
             for module in self.stepper_modules:
                 module.all_steppers.set_speed(speed)
         elif hour:
@@ -44,6 +48,7 @@ class ClockSteppers:
 
     def set_accel_all(self, accel: int, minute=True, hour=True):
         if hour == minute:
+            self.current_accel = accel
             for module in self.stepper_modules:
                 module.all_steppers.set_accel(accel)
         elif hour:

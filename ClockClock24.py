@@ -44,7 +44,7 @@ class ClockClock24:
         #flags, set during mode change
         self.displaying_mode_change = False
         
-        self.__current_mode = None
+        self.current_mode = None
         self.set_mode(self.current_mode_idx)
 
     async def run(self):
@@ -70,8 +70,8 @@ class ClockClock24:
             print('Twelve hour format:', bool(self.settings.persistent.get_var("12 hour format")))
 
         if not self.displaying_mode_change:
-            if self.__current_mode != None:
-                self.__current_mode.new_time(hour, minute)
+            if self.current_mode != None:
+                self.current_mode.new_time(hour, minute)
 
     def cancel_tasks(self):
         if self.async_display_task != None:
@@ -93,10 +93,10 @@ class ClockClock24:
         if __debug__:
             print("New mode:", mode_id)
 
-        if self.__current_mode != None:
-            self.__current_mode.end() #"destructor" of the old mode
+        if self.current_mode != None:
+            self.current_mode.end() #"destructor" of the old mode
 
-        self.__current_mode = self.modes[mode_id]
+        self.current_mode = self.modes[mode_id]
         self.current_mode_idx = mode_id
         
         #flags, so new time does not interrupt mode change number display
@@ -115,10 +115,7 @@ class ClockClock24:
         #mode change is done, so time can be displayed again
         self.displaying_mode_change = False
 
-        self.__current_mode.start() # specific initialisation of new mode after display of mode digit is done
-
-    def get_mode_id(self):
-        return self.current_mode_idx
+        self.current_mode.start() # specific initialisation of new mode after display of mode digit is done
     
 #endregion
   
@@ -190,8 +187,8 @@ class ClockClock24:
         else:
             #only pass button press to mode if not currently displaying mode change
             if not self.displaying_mode_change:
-                if self.__current_mode != None:
-                    self.__current_mode.button_handler(button_id, long_press, double_press)
+                if self.current_mode != None:
+                    self.current_mode.button_handler(button_id, long_press, double_press)
 
 #endregion
 
