@@ -46,7 +46,7 @@ class DS3231_timekeeper:
         
     def set_hour_min_sec(self, hour, minute, second):
         #second 1 so alarm is not triggered, since this is inconsistent somehow
-        if second == 0: #since this is inconsistent for some reacon
+        if second == 0: #since this is inconsistent for some reason
             second = 1
         self.set_datetime(urtc.datetime_tuple(year=2000, month=1, day=21, weekday=5, hour=hour, minute=minute, second=second, millisecond=0)) 
 
