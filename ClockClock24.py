@@ -184,6 +184,8 @@ class ClockClock24:
                 self.movement_done_event.set()
 
         if self.alarm_flag:
+            self.send_heartbeat() # send heartbeat to all modules, so they know that the clock is still running at least once per minute
+
             self.alarm_flag = False
             hour, minute = self.rtc.get_hour_minute(bool(self.persistent.get_var("12 hour format")))
             self.display_time(hour, minute)
@@ -440,6 +442,7 @@ class ClockClock24:
         # here tasks are not cancelled since this could be called during set mode
         if __debug__:
             print("New time not displayed")
+
         return
 
 #endregion
@@ -797,6 +800,13 @@ class ClockClock24:
                 return True
         
         return False
+
+    def send_heartbeat(self):
+        """
+        sends a heartbeat to all modules, so they can reset their watchdogs
+        """
+        for module in self.clock_modules:
+            module.is_running_module()  # this will send a heartbeat to all modules
     
     def set_speed_all(self, speed: int):
         self.current_speed = speed
