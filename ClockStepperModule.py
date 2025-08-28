@@ -32,9 +32,9 @@ class ClockModule: # module for 1 of the 6 pcbs in the clock
         self.hour_steppers = self.steppers[4:]
         
         # commands a specific set of steppers
-        self.all_steppers = ClockStepper(self.stepper_selector["all"], self, self.steps_full_rev) 
-        self.all_hour_steppers = ClockStepper(self.stepper_selector["hour"], self, self.steps_full_rev)
-        self.all_minute_steppers = ClockStepper(self.stepper_selector["minute"], self, self.steps_full_rev)
+        self.all_steppers = ClockStepper(self.stepper_selector["all"], self, self.steps_full_rev, children=self.steppers)
+        self.all_hour_steppers = ClockStepper(self.stepper_selector["hour"], self, self.steps_full_rev, children=self.hour_steppers)
+        self.all_minute_steppers = ClockStepper(self.stepper_selector["minute"], self, self.steps_full_rev, children=self.minute_steppers)
         
         self.verbose = False
         
@@ -121,11 +121,14 @@ class ClockStepper:
       "moveTo_min_steps": 8
     }
     
-    def __init__(self, sub_stepper_id: int, module: ClockModule, steps_per_rev: int, current_target_pos = 0):
+    def __init__(self, sub_stepper_id: int, module: ClockModule, steps_per_rev: int, current_target_pos = 0, children=None):
         self.module = module
         self.sub_stepper_id = sub_stepper_id
         self.current_target_pos = current_target_pos
+        self.current_speed = -1
+        self.current_accel = -1
         self.steps_per_rev = steps_per_rev
+        self.children = children
         
         self.verbose = False
         
@@ -133,16 +136,32 @@ class ClockStepper:
         buffer = pack("<BHb", self.cmd_id["set_speed"], speed, self.sub_stepper_id) #cmd_id uint8, speed uint16, stepper_id int8           
         
         self.module.i2c_write(buffer)
+
+        if self.children is not None: # if this is a parent stepper, set speed for all children
+            for child in self.children:
+                child.current_speed = speed
+
+        self.current_speed = speed
     
     def set_accel(self, accel: int):
-        buffer = pack("<BHb", self.cmd_id["set_accel"], accel, self.sub_stepper_id) #cmd_id uint8, accel uint16, stepper_id int8           
+        buffer = pack("<BHb", self.cmd_id["set_accel"], accel, self.sub_stepper_id) #cmd_id uint8, accel uint16, stepper_id int8  
 
         self.module.i2c_write(buffer)
+
+        if self.children is not None: # if this is a parent stepper, set accel for all children
+            for child in self.children:
+                child.current_accel = accel
+                
+        self.current_accel = accel         
     
     def move_to(self, position: int, direction: int):
         buffer = pack("<Bhbb", self.cmd_id["moveTo"], position, direction, self.sub_stepper_id) #cmd_id uint8, position int16, dir int8, stepper_id int8           
         
         self.module.i2c_write(buffer)
+
+        if self.children is not None:
+            for child in self.children:
+                child.current_target_pos = position
         
         self.current_target_pos = position
     
@@ -157,6 +176,10 @@ class ClockStepper:
         buffer = pack("<BhbHb", self.cmd_id["moveTo_min_steps"], position, direction, min_steps, self.sub_stepper_id) #cmd_id uint8, position int16, dir int8, min_steps uint16, stepper_id int8           
         
         self.module.i2c_write(buffer)
+
+        if self.children is not None:
+            for child in self.children:
+                child.current_target_pos = position
         
         self.current_target_pos = position
     
@@ -167,6 +190,10 @@ class ClockStepper:
             
         relative = (distance * direction) % self.steps_per_rev
         self.current_target_pos = (self.steps_per_rev + self.current_target_pos + relative) % self.steps_per_rev
+
+        if self.children is not None: # if this is a parent stepper, set target pos for all children
+            for child in self.children:
+                child.current_target_pos = (self.steps_per_rev + child.current_target_pos + relative) % self.steps_per_rev
         
     def stop(self):
         buffer = pack("<Bb", self.cmd_id["stop"], self.sub_stepper_id) #cmd_id uint8, stepper_id int8     
@@ -175,6 +202,10 @@ class ClockStepper:
         
         self.current_target_pos = -1
 
+        if self.children is not None: # if this is a parent stepper, set target pos for all children
+            for child in self.children:
+                child.current_target_pos = -1
+
     def wiggle(self, distance: int, direction: int):
         buffer = pack("<BHbb", self.cmd_id["wiggle"], distance, direction, self.sub_stepper_id) #cmd_id uint8, distance uint16, dir int8, stepper_id int8
 
@@ -182,7 +213,14 @@ class ClockStepper:
     
     def is_running(self) -> bool: #returns True if stepper is running
         buffer = self.module.i2c_read(1)
-            
-        return ((1 << self.sub_stepper_id) & buffer[0] != 0)
+
+        if self.children is not None:
+            running = False
+            for child in self.children:
+                running = ((1 << child.sub_stepper_id) & buffer[0] != 0) or running
+
+            return running
+        else:
+            return ((1 << self.sub_stepper_id) & buffer[0] != 0)
   
 #endregion
