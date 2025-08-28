@@ -1,6 +1,7 @@
 import math
 import random
 import uasyncio as asyncio
+import json
 
 class DigitDisplay:
     """
@@ -76,6 +77,10 @@ class DigitDisplay:
       "smaller bigger": 14, # idk
       "small circles": 15, # small circles made of 4 clocks each
       "uhrenspiel": 16, # dangling pointers
+      "hamiltonian": 17, # show a hamiltonian path
+      "game of life": 18, # cellular automaton
+      "collision": 19, # bouncing pointers
+      "checkerboard": 20 # checkerboard pattern    
       }
     
     def __init__(self, clockclock, number_style_options):
@@ -111,8 +116,22 @@ class DigitDisplay:
             self.new_pose_circle,
             self.new_pose_smaller_bigger,
             self.new_pose_small_circles,
-            self.new_pose_uhrenspiel
+            self.new_pose_uhrenspiel,
+            self.new_pose_hamiltonian,
+            self.new_pose_game_of_life,
+            self.new_pose_collision,
+            self.new_pose_checkerboard
           ]
+        
+        # try to load hamiltonian paths json
+        try:
+            with open("hamiltonian_paths.json", 'r') as f:
+                self.hamiltonian_paths = json.load(f)
+            print(f"Loaded {len(self.hamiltonian_paths)} Hamiltonian paths.")
+            self.animation_handlers.append(self.new_pose_hamiltonian)
+        except FileNotFoundError:
+            print("Warning: hamiltonian_paths.json not found. Hamiltonian animation will not work.")
+            self.hamiltonian_paths = [[0, 1, 2, 3, 4, 5, 6, 7, 15, 14, 13, 12, 11, 10, 9, 8, 16, 17, 18, 19, 20, 21, 22, 23]]
         
         self.digits_pointer_pos_abs = [[[[int(frac * self.steps_full_rev) for frac in hour_minute] for hour_minute in digit_option] for digit_option in number] for number in DigitDisplay.digits_pointer_pos_frac]
         
@@ -913,4 +932,156 @@ class DigitDisplay:
         for clk_index in range(24):
             self.hour_steppers[clk_index].move_to(new_positions_h[clk_index], 0)
             self.minute_steppers[clk_index].move_to(new_positions_m[clk_index], 0)
+
+    async def new_pose_collision(self, new_positions_h, new_positions_m):
+        """EAch row or column comes with a wave from alternating directions."""
+        extra_revs = 1
+        ms_delay = 400
         
+        wave_direction = random.randint(0, 1)
+        if wave_direction == 0:
+            indices = self.row_indices
+        else:
+            indices = self.column_indices
+
+        first_direction = random.choice([0, 1])
+
+        # move to start position
+        for index, lst in enumerate(indices):
+            if (index % 2) == first_direction:
+                start_ang = 0.25
+            else:
+                start_ang = 0.75
+            
+            for clk_index in lst:
+                start_pos = int(self.steps_full_rev * start_ang)
+
+                self.hour_steppers[clk_index].move_to(start_pos, 0)
+                self.minute_steppers[clk_index].move_to(start_pos, 0)
+
+        # wait for move to be done
+        self.clockclock.movement_done_event.clear()
+        await self.clockclock.movement_done_event.wait()
+
+        for index, lst in enumerate(indices):
+            if index != 0:
+                await asyncio.sleep_ms(ms_delay)
+
+            if (index % 2) == first_direction:
+                lst_t = list(reversed(lst))
+            else:
+                lst_t = lst
+
+            for clk_index in lst_t:
+                self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], 1, extra_revs)
+                self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], -1, extra_revs)
+
+    async def new_pose_checkerboard(self, new_positions_h, new_positions_m):
+        """Animation: Moves clocks in a checkerboard pattern."""
+        extra_revs = 1
+
+        for clk_idx in range(24):
+            if (clk_idx % 2) == 0:
+                start_ang_h = 0.0
+                start_ang_m = 0.5
+            else:
+                start_ang_h = 0.25
+                start_ang_m = 0.75
+
+            start_pos_h = int(self.steps_full_rev * start_ang_h)
+            start_pos_m = int(self.steps_full_rev * start_ang_m)
+
+            self.hour_steppers[clk_idx].move_to(start_pos_h, 0)
+            self.minute_steppers[clk_idx].move_to(start_pos_m, 0)
+
+        # wait for move to be done
+        self.clockclock.movement_done_event.clear()
+        await self.clockclock.movement_done_event.wait()
+
+        for clk_idx in range(24):
+            if (clk_idx % 2) == 0:
+                direction = 1
+            else:
+                direction = -1
+
+            self.hour_steppers[clk_idx].move_to_extra_revs(new_positions_h[clk_idx], direction, extra_revs)
+            self.minute_steppers[clk_idx].move_to_extra_revs(new_positions_m[clk_idx], direction, extra_revs)
+
+    async def new_pose_hamiltonian(self, new_positions_h, new_positions_m):
+        """Animation: Draws a random continuous Hamiltonian path."""
+        path = random.choice(self.hamiltonian_paths)
+        
+        direction_to_frac = {-8: 0.0, 8: 0.5, -1: 0.75, 1: 0.25}
+
+        for i, clk_index in enumerate(path):
+            in_dir = path[i-1] - clk_index if i > 0 else path[i+1] - clk_index
+            out_dir = path[i+1] - clk_index if i < len(path) - 1 else path[i-1] - clk_index
+
+            pos_h_frac = direction_to_frac.get(in_dir, 0.0)
+            pos_m_frac = direction_to_frac.get(out_dir, 0.5)
+
+            self.hour_steppers[clk_index].move_to(int(pos_h_frac * self.steps_full_rev), 0)
+            self.minute_steppers[clk_index].move_to(int(pos_m_frac * self.steps_full_rev), 0)
+
+            await asyncio.sleep(0.2)
+
+        self.clockclock.movement_done_event.clear()
+        await self.clockclock.movement_done_event.wait()
+
+        await asyncio.sleep(0.7)
+
+        for i, clk_index in enumerate(path):
+            self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], -1, 1)
+            self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], 1, 1)
+
+            await asyncio.sleep(0.2)
+
+    async def new_pose_game_of_life(self, new_positions_h, new_positions_m):
+        """Animation: Runs Conway's Game of Life."""
+        num_generations = 6
+        alive_frac = (0.0, 0.0) # Pointing up/down
+        dead_frac = (0.25, 0.75) # Horizontal
+
+        # Correct dimensions: 3 rows, 8 columns
+        grid = [[random.choice([True, False]) for _ in range(8)] for _ in range(3)]
+
+        for _ in range(num_generations):
+            # Display current grid
+            # Corrected loop: iterate through 3 rows and 8 columns
+            for r in range(3):
+                for c in range(8):
+                    clk_index = r * 8 + c
+                    h_frac, m_frac = alive_frac if grid[r][c] else dead_frac
+                    self.hour_steppers[clk_index].move_to(int(h_frac * self.steps_full_rev), 0)
+                    self.minute_steppers[clk_index].move_to(int(m_frac * self.steps_full_rev), 0)
+            
+            self.clockclock.movement_done_event.clear()
+            await self.clockclock.movement_done_event.wait()
+
+            # Calculate next state
+            new_grid = [[False] * 8 for _ in range(3)]
+            # Corrected loop: iterate through 3 rows and 8 columns
+            for r in range(3):
+                for c in range(8):
+                    live_neighbors = 0
+                    for dr in [-1, 0, 1]:
+                        for dc in [-1, 0, 1]:
+                            if dr == 0 and dc == 0: continue
+                            nr, nc = r + dr, c + dc
+                            # Boundary check must use the correct dimensions
+                            if 0 <= nr < 3 and 0 <= nc < 8 and grid[nr][nc]:
+                                live_neighbors += 1
+                    
+                    if grid[r][c] and live_neighbors in [2, 3]: new_grid[r][c] = True
+                    elif not grid[r][c] and live_neighbors == 3: new_grid[r][c] = True
+
+            # check if stable
+            if new_grid == grid:
+                await asyncio.sleep(0.5)
+                break
+            grid = new_grid
+
+        # Move to final positions
+        for clk_index in range(24): # range(len(self.clocks)) is 24
+            self.hour_steppers[clk_index].move_to(new_positions_h[clk_index], 0)
+            self.minute_steppers[clk_index].move_to(new_positions_m[clk_index], 0)
