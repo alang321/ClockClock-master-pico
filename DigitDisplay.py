@@ -962,7 +962,7 @@ class DigitDisplay:
                 self.minute_steppers[clk_index].move_to(start_pos, 0)
 
         indices_final = []  
-        for lst in enumerate(indices):
+        for index, lst in enumerate(indices):
             if (index % 2) == first_direction:
                 indices_final.append(lst)
             else:
@@ -1112,8 +1112,8 @@ class DigitDisplay:
         steps_m = [0] * 24
 
         for clk_idx in range(24):
-            pos_h = self.hour_steppers[clk_idx].current_position % self.steps_full_rev
-            pos_m = self.minute_steppers[clk_idx].current_position % self.steps_full_rev
+            pos_h = self.hour_steppers[clk_idx].current_target_pos % self.steps_full_rev
+            pos_m = self.minute_steppers[clk_idx].current_target_pos % self.steps_full_rev
 
             # calculate the distance in the chosen direction
             if direction == 1:
@@ -1129,7 +1129,7 @@ class DigitDisplay:
 
             delays_ms[clk_idx] = int(distance / speed * 1000) if speed > 0 else 0
 
-            steps_h[clk_idx] = distance_to_target_h if distance_to_target_h > 0 else self.steps_full_rev
+            steps_h[clk_idx] = distance_to_target_h if distance_to_target_h > self.steps_full_rev * 0.5 else self.steps_full_rev + distance_to_target_h
 
             steps_m[clk_idx] = distance_to_target_m if distance_to_target_m > distance else distance_to_target_m + self.steps_full_rev
 
@@ -1142,7 +1142,7 @@ class DigitDisplay:
         sorted_delays, sorted_indices = zip(*delay_idx_pairs)
 
         for clk_idx in range(24):
-            self.minute_steppers[clk_idx].move(steps_m[clk_idx], direction)
+            self.minute_steppers[clk_idx].move_to_min_steps(new_positions_m[clk_idx], direction, steps_m[clk_idx])
 
         prev_delay = 0
         for sorted_idx in range(24):
@@ -1154,5 +1154,5 @@ class DigitDisplay:
             if delay > 0:
                 await asyncio.sleep_ms(delay)
 
-            self.hour_steppers[clk_idx].move(steps_h[clk_idx], direction)
+            self.hour_steppers[clk_idx].move_to_min_steps(new_positions_h[clk_idx], direction, steps_h[clk_idx])
             prev_delay = delay_ms
