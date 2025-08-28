@@ -80,7 +80,8 @@ class DigitDisplay:
       "hamiltonian": 17, # show a hamiltonian path
       "game of life": 18, # cellular automaton
       "collision": 19, # bouncing pointers
-      "checkerboard": 20 # checkerboard pattern    
+      "checkerboard": 20, # checkerboard pattern    
+      "shutter louvre": 21
       }
     
     def __init__(self, clockclock, number_style_options):
@@ -120,7 +121,8 @@ class DigitDisplay:
             self.new_pose_hamiltonian,
             self.new_pose_game_of_life,
             self.new_pose_collision,
-            self.new_pose_checkerboard
+            self.new_pose_checkerboard,
+            self.new_pose_shutter_louver
           ]
         
         # try to load hamiltonian paths json
@@ -939,40 +941,44 @@ class DigitDisplay:
         ms_delay = 400
         
         wave_direction = random.randint(0, 1)
+        first_direction = random.choice([0, 1])
+
         if wave_direction == 0:
             indices = self.row_indices
+            start_ang = 0.75
         else:
             indices = self.column_indices
+            start_ang = 0.0
 
-        first_direction = random.choice([0, 1])
+        if first_direction == 1:
+            start_ang += 0.5
 
         # move to start position
         for index, lst in enumerate(indices):
-            if (index % 2) == first_direction:
-                start_ang = 0.25
-            else:
-                start_ang = 0.75
-            
             for clk_index in lst:
-                start_pos = int(self.steps_full_rev * start_ang)
+                start_pos = int(self.steps_full_rev * (start_ang + (index % 2) * 0.5))
 
                 self.hour_steppers[clk_index].move_to(start_pos, 0)
                 self.minute_steppers[clk_index].move_to(start_pos, 0)
+
+        indices_final = []  
+        for lst in enumerate(indices):
+            if (index % 2) == first_direction:
+                indices_final.append(lst)
+            else:
+                # reversed list
+                indices_final.append(list(reversed(lst)))
 
         # wait for move to be done
         self.clockclock.movement_done_event.clear()
         await self.clockclock.movement_done_event.wait()
 
-        for index, lst in enumerate(indices):
+        for index in range(len(indices[0])):
             if index != 0:
                 await asyncio.sleep_ms(ms_delay)
 
-            if (index % 2) == first_direction:
-                lst_t = list(reversed(lst))
-            else:
-                lst_t = lst
-
-            for clk_index in lst_t:
+            for lst_t in indices_final:
+                clk_index = lst_t[index]
                 self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], 1, extra_revs)
                 self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], -1, extra_revs)
 
@@ -981,7 +987,12 @@ class DigitDisplay:
         extra_revs = 1
 
         for clk_idx in range(24):
-            if (clk_idx % 2) == 0:
+            if 7 < clk_idx < 16:
+                offset = 1
+            else:
+                offset = 0
+                
+            if ((clk_idx + offset) % 2) == 0:
                 start_ang_h = 0.0
                 start_ang_m = 0.5
             else:
@@ -999,7 +1010,12 @@ class DigitDisplay:
         await self.clockclock.movement_done_event.wait()
 
         for clk_idx in range(24):
-            if (clk_idx % 2) == 0:
+            if 7 < clk_idx < 16:
+                offset = 1
+            else:
+                offset = 0
+                
+            if ((clk_idx + offset) % 2) == 0:
                 direction = 1
             else:
                 direction = -1
@@ -1085,3 +1101,58 @@ class DigitDisplay:
         for clk_index in range(24): # range(len(self.clocks)) is 24
             self.hour_steppers[clk_index].move_to(new_positions_h[clk_index], 0)
             self.minute_steppers[clk_index].move_to(new_positions_m[clk_index], 0)
+
+    async def new_pose_shutter_louver(self, new_positions_h, new_positions_m):
+        direction = random.choice([-1, 1]) # 1 is clockwise, -1 is counter-clockwise
+
+        # calculate the distances between the minute and hour pointer in the chosen direction
+        delays_ms = [0] * 24
+
+        steps_h = [0] * 24
+        steps_m = [0] * 24
+
+        for clk_idx in range(24):
+            pos_h = self.hour_steppers[clk_idx].current_position % self.steps_full_rev
+            pos_m = self.minute_steppers[clk_idx].current_position % self.steps_full_rev
+
+            # calculate the distance in the chosen direction
+            if direction == 1:
+                distance = (pos_h - pos_m) % self.steps_full_rev
+                distance_to_target_h = (new_positions_h[clk_idx] - pos_h) % self.steps_full_rev
+                distance_to_target_m = (new_positions_m[clk_idx] - pos_m) % self.steps_full_rev
+            else:
+                distance = (pos_m - pos_h) % self.steps_full_rev
+                distance_to_target_h = (pos_h - new_positions_h[clk_idx]) % self.steps_full_rev
+                distance_to_target_m = (pos_m - new_positions_m[clk_idx]) % self.steps_full_rev
+
+            speed = self.clockclock.current_speed
+
+            delays_ms[clk_idx] = int(distance / speed * 1000) if speed > 0 else 0
+
+            steps_h[clk_idx] = distance_to_target_h if distance_to_target_h > 0 else self.steps_full_rev
+
+            steps_m[clk_idx] = distance_to_target_m if distance_to_target_m > distance else distance_to_target_m + self.steps_full_rev
+
+            if steps_m[clk_idx] < distance + steps_h[clk_idx]:
+                steps_m[clk_idx] += self.steps_full_rev
+
+        # create list of incremental hour pointer movement delays with corresponding indices
+        # sort list by delay and create corresponding list of clk_indices
+        delay_idx_pairs = sorted((delay, idx) for idx, delay in enumerate(delays_ms))
+        sorted_delays, sorted_indices = zip(*delay_idx_pairs)
+
+        for clk_idx in range(24):
+            self.minute_steppers[clk_idx].move(steps_m[clk_idx], direction)
+
+        prev_delay = 0
+        for sorted_idx in range(24):
+            clk_idx = sorted_indices[sorted_idx]
+            delay_ms = sorted_delays[sorted_idx]
+
+            delay = delay_ms - prev_delay
+
+            if delay > 0:
+                await asyncio.sleep_ms(delay)
+
+            self.hour_steppers[clk_idx].move(steps_h[clk_idx], direction)
+            prev_delay = delay_ms
