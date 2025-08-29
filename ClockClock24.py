@@ -86,7 +86,8 @@ class ClockClock24:
                                      #DigitDisplay.animations["uhrenspiel"],
                                      DigitDisplay.animations["collision"],
                                      DigitDisplay.animations["checkerboard"],
-                                     DigitDisplay.animations["shutter louvre"]
+                                     DigitDisplay.animations["shutter louvre"],
+                                     DigitDisplay.animations["pickup"],
                                      ]
         self.random_shuffle(self.visual_animation_ids)
         self.animation_index = 0

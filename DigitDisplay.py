@@ -81,7 +81,8 @@ class DigitDisplay:
       "game of life": 18, # cellular automaton
       "collision": 19, # bouncing pointers
       "checkerboard": 20, # checkerboard pattern    
-      "shutter louvre": 21
+      "shutter louvre": 21,
+      "pickup": 22
       }
     
     def __init__(self, clockclock, number_style_options):
@@ -122,7 +123,8 @@ class DigitDisplay:
             self.new_pose_game_of_life,
             self.new_pose_collision,
             self.new_pose_checkerboard,
-            self.new_pose_shutter_louver
+            self.new_pose_shutter_louver,
+            self.new_pose_pickup
           ]
         
         # try to load hamiltonian paths json
@@ -940,7 +942,7 @@ class DigitDisplay:
         extra_revs = 1
         ms_delay = 400
         
-        wave_direction = random.randint(0, 1)
+        wave_direction = random.choice([1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
         first_direction = random.choice([0, 1])
 
         if wave_direction == 0:
@@ -1014,14 +1016,9 @@ class DigitDisplay:
                 offset = 1
             else:
                 offset = 0
-                
-            if ((clk_idx + offset) % 2) == 0:
-                direction = 1
-            else:
-                direction = -1
 
-            self.hour_steppers[clk_idx].move_to_extra_revs(new_positions_h[clk_idx], direction, extra_revs)
-            self.minute_steppers[clk_idx].move_to_extra_revs(new_positions_m[clk_idx], direction, extra_revs)
+            self.hour_steppers[clk_idx].move_to_extra_revs(new_positions_h[clk_idx], 1, extra_revs)
+            self.minute_steppers[clk_idx].move_to_extra_revs(new_positions_m[clk_idx], 1, extra_revs)
 
     async def new_pose_hamiltonian(self, new_positions_h, new_positions_m):
         """Animation: Draws a random continuous Hamiltonian path."""
@@ -1047,8 +1044,8 @@ class DigitDisplay:
         await asyncio.sleep(0.7)
 
         for i, clk_index in enumerate(path):
-            self.hour_steppers[clk_index].move_to_extra_revs(new_positions_h[clk_index], -1, 1)
-            self.minute_steppers[clk_index].move_to_extra_revs(new_positions_m[clk_index], 1, 1)
+            self.hour_steppers[clk_index].move_to(new_positions_h[clk_index], 0)
+            self.minute_steppers[clk_index].move_to(new_positions_m[clk_index], 0)
 
             await asyncio.sleep(0.2)
 
@@ -1103,7 +1100,12 @@ class DigitDisplay:
             self.minute_steppers[clk_index].move_to(new_positions_m[clk_index], 0)
 
     async def new_pose_shutter_louver(self, new_positions_h, new_positions_m):
-        direction = random.choice([-1, 1]) # 1 is clockwise, -1 is counter-clockwise
+        # clock must move at least a bit, if both stay in the same place both do a full rotation in a random direction
+        # minute pointer moves, picks up hour, drops off hours, stops
+        # hour and minute assignment is non strict
+
+        # minute moves to hour, drops off hour, stops
+        # maximum 1.5 rotations by minute pointer
 
         # calculate the distances between the minute and hour pointer in the chosen direction
         delays_ms = [0] * 24
@@ -1111,30 +1113,68 @@ class DigitDisplay:
         steps_h = [0] * 24
         steps_m = [0] * 24
 
+        directions = [0] * 24
+
+        speed = self.clockclock.current_speed
+
+        final_pos_m = [0] * 24
+        final_pos_h = [0] * 24
+
         for clk_idx in range(24):
             pos_h = self.hour_steppers[clk_idx].current_target_pos % self.steps_full_rev
             pos_m = self.minute_steppers[clk_idx].current_target_pos % self.steps_full_rev
 
-            # calculate the distance in the chosen direction
-            if direction == 1:
-                distance = (pos_h - pos_m) % self.steps_full_rev
-                distance_to_target_h = (new_positions_h[clk_idx] - pos_h) % self.steps_full_rev
-                distance_to_target_m = (new_positions_m[clk_idx] - pos_m) % self.steps_full_rev
-            else:
-                distance = (pos_m - pos_h) % self.steps_full_rev
-                distance_to_target_h = (pos_h - new_positions_h[clk_idx]) % self.steps_full_rev
-                distance_to_target_m = (pos_m - new_positions_m[clk_idx]) % self.steps_full_rev
+            distance_cw = (pos_h - pos_m) % self.steps_full_rev
+            distance_ccw = (pos_m - pos_h) % self.steps_full_rev
 
-            speed = self.clockclock.current_speed
+            if distance_cw < distance_ccw:
+                directions[clk_idx] = 1
+            elif distance_cw == distance_ccw:
+                directions[clk_idx] = random.choice([-1, 1])
+            else:
+                directions[clk_idx] = -1
+
+            if directions[clk_idx] == 1:
+                distance = distance_cw
+            else:
+                distance = distance_ccw
+
+            # calculate both distances from from pickup to dropoff
+            if directions[clk_idx] == 1:
+                distance_pickup_to_dropoff_1 = (new_positions_h[clk_idx] - pos_h) % self.steps_full_rev
+                distance_pickup_to_dropoff_2 = (new_positions_m[clk_idx] - pos_h) % self.steps_full_rev
+            else:
+                distance_pickup_to_dropoff_1 = (pos_h - new_positions_h[clk_idx]) % self.steps_full_rev
+                distance_pickup_to_dropoff_2 = (pos_h - new_positions_m[clk_idx]) % self.steps_full_rev
+
+            # hour pointer is dropped off at first non-zero dropoff point, minute pointer at the other one
+            if distance_pickup_to_dropoff_1 == 0 and distance_pickup_to_dropoff_2 == 0:
+                steps_h[clk_idx] = self.steps_full_rev
+                steps_m[clk_idx] = self.steps_full_rev + distance
+                final_pos_h[clk_idx] = new_positions_h[clk_idx]
+                final_pos_m[clk_idx] = new_positions_m[clk_idx]
+            elif distance_pickup_to_dropoff_1 == 0:
+                steps_h[clk_idx] = distance_pickup_to_dropoff_2
+                steps_m[clk_idx] = self.steps_full_rev + distance
+                final_pos_h[clk_idx] = new_positions_m[clk_idx]
+                final_pos_m[clk_idx] = new_positions_h[clk_idx]
+            elif distance_pickup_to_dropoff_2 == 0:
+                steps_h[clk_idx] = distance_pickup_to_dropoff_1
+                steps_m[clk_idx] = self.steps_full_rev + distance
+                final_pos_h[clk_idx] = new_positions_h[clk_idx]
+                final_pos_m[clk_idx] = new_positions_m[clk_idx]
+            elif distance_pickup_to_dropoff_1 < distance_pickup_to_dropoff_2:
+                steps_h[clk_idx] = distance_pickup_to_dropoff_1
+                steps_m[clk_idx] = distance_pickup_to_dropoff_2 + distance
+                final_pos_h[clk_idx] = new_positions_h[clk_idx]
+                final_pos_m[clk_idx] = new_positions_m[clk_idx]
+            else:
+                steps_h[clk_idx] = distance_pickup_to_dropoff_2
+                steps_m[clk_idx] = distance_pickup_to_dropoff_1 + distance
+                final_pos_h[clk_idx] = new_positions_m[clk_idx]
+                final_pos_m[clk_idx] = new_positions_h[clk_idx]
 
             delays_ms[clk_idx] = int(distance / speed * 1000) if speed > 0 else 0
-
-            steps_h[clk_idx] = distance_to_target_h if distance_to_target_h > self.steps_full_rev * 0.5 else self.steps_full_rev + distance_to_target_h
-
-            steps_m[clk_idx] = distance_to_target_m if distance_to_target_m > distance else distance_to_target_m + self.steps_full_rev
-
-            if steps_m[clk_idx] < distance + steps_h[clk_idx]:
-                steps_m[clk_idx] += self.steps_full_rev
 
         # create list of incremental hour pointer movement delays with corresponding indices
         # sort list by delay and create corresponding list of clk_indices
@@ -1142,7 +1182,7 @@ class DigitDisplay:
         sorted_delays, sorted_indices = zip(*delay_idx_pairs)
 
         for clk_idx in range(24):
-            self.minute_steppers[clk_idx].move_to_min_steps(new_positions_m[clk_idx], direction, steps_m[clk_idx])
+            self.minute_steppers[clk_idx].move_to_min_steps(final_pos_m[clk_idx], directions[clk_idx], steps_m[clk_idx] - 10)
 
         prev_delay = 0
         for sorted_idx in range(24):
@@ -1154,5 +1194,70 @@ class DigitDisplay:
             if delay > 0:
                 await asyncio.sleep_ms(delay)
 
-            self.hour_steppers[clk_idx].move_to_min_steps(new_positions_h[clk_idx], direction, steps_h[clk_idx])
+            self.hour_steppers[clk_idx].move_to_min_steps(final_pos_h[clk_idx], directions[clk_idx], steps_h[clk_idx] - 10)
             prev_delay = delay_ms
+
+    
+    async def new_pose_pickup(self, new_positions_h, new_positions_m): 
+        # pointers start moving from one of randomly chosen 4 positions (3,6,9,12) into random direction 
+        # any pointers at the chosen position start moving immediately in chosen direction, 
+        # any pointers in other position start moving with a delay so they are in phase 
+        # they then do one full rotation when arriving at initial position 
+        # then they move the less than 1*full_rotation in the same direction to their target 
+        # i think max amount of rotation will be 2.875 rotations
+
+        speed = self.clockclock.current_speed
+
+        # pick random quadrant (3, 6, 9, 12)
+        start_pos = random.choice([self.steps_full_rev // 4 * k for k in (0, 2)])
+        direction = random.choice([-1, 1]) # 1 is clockwise, -1 is counterclockwise
+
+        delays_ms = [0] * 48
+        min_steps = [0] * 48
+
+        current_pos = [0] * 48
+        target_pos = [0] * 48
+
+        for clk_idx in range(24):
+            current_pos[clk_idx] = self.hour_steppers[clk_idx].current_target_pos % self.steps_full_rev
+            current_pos[clk_idx + 24] = self.minute_steppers[clk_idx].current_target_pos % self.steps_full_rev
+
+            target_pos[clk_idx] = new_positions_h[clk_idx]
+            target_pos[clk_idx + 24] = new_positions_m[clk_idx]
+
+        for ptr_idx in range(48):
+            pos = current_pos[ptr_idx]
+
+            # distance from start_pos to current_pos
+            if direction == 1:
+                dist_start_to_pos = (pos - start_pos) % self.steps_full_rev
+            else:
+                dist_start_to_pos = (start_pos - pos) % self.steps_full_rev
+
+            # delay so all pointers line up at start_pos together
+            delays_ms[ptr_idx] = int(dist_start_to_pos / speed * 1000)
+
+            # after delay: move (steps_full_rev - dist_start_to_pos) + 1 full rev + final leg (-10 is just so i dont make some off by 1 error that forces a full rotation, i dont think its needed but it doesnt hurt)
+            min_steps[ptr_idx] = (self.steps_full_rev - dist_start_to_pos) + self.steps_full_rev - 10
+
+        # phase 1: wait for delays and start both pointers together
+        delay_idx_pairs = sorted((delay, idx) for idx, delay in enumerate(delays_ms))
+        sorted_delays, sorted_indices = zip(*delay_idx_pairs)
+
+        prev_delay = 0
+        for sorted_idx in range(48):
+            ptr_idx = sorted_indices[sorted_idx]
+            delay_ms = sorted_delays[sorted_idx]
+
+            delta = delay_ms - prev_delay
+            if delta > 0:
+                await asyncio.sleep_ms(delta)
+
+            # launch both hour and minute pointer moves, min steps means at least this many steps will be done when moving to target
+            if ptr_idx < 24:
+                self.hour_steppers[ptr_idx].move_to_min_steps(target_pos[ptr_idx], direction, min_steps[ptr_idx])
+            else:
+                self.minute_steppers[ptr_idx - 24].move_to_min_steps(target_pos[ptr_idx], direction, min_steps[ptr_idx])
+
+            prev_delay = delay_ms
+
