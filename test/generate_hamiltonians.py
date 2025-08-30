@@ -67,7 +67,7 @@ def create_path_file(num_paths, rows, cols, filename="hamiltonian_paths.json"):
 
     while len(all_paths) < num_paths:
         path = generate_random_hamiltonian_path(rows, cols)
-        if path:
+        if path and not are_path_ends_adjacent(path, rows, cols):
             all_paths.add(tuple(path)) # Add tuple to set for uniqueness check
             print(f"  Found path {len(all_paths)}/{num_paths}")
 
@@ -79,11 +79,33 @@ def create_path_file(num_paths, rows, cols, filename="hamiltonian_paths.json"):
     
     print(f"\nSuccessfully saved {len(paths_to_save)} paths to '{filename}'.")
 
+def are_path_ends_adjacent(path, rows, cols):
+    """Checks if the start and end of the path are adjacent."""
+    if not path or len(path) < 2:
+        return False
+
+    start = path[0]
+    end = path[-1]
+
+    # Check if they are on the same row
+    if (start // cols) == (end // cols):
+        if abs(start - end) == 1:
+            return True
+        else:
+            return False
+    
+    # Check if they are on the same column
+    if (start % cols) == (end % cols):
+        if abs(start - end) == cols:
+            return True
+        else:
+            return False
+
 # --- Run the generator ---
 if __name__ == "__main__":
     # For your 3x8 clock grid
     GRID_ROWS = 3
     GRID_COLS = 8
-    
-    # Generate 50 unique paths and save them
-    create_path_file(num_paths=100, rows=GRID_ROWS, cols=GRID_COLS)
+
+    # Generate 150 unique paths and save them
+    create_path_file(num_paths=150, rows=GRID_ROWS, cols=GRID_COLS)

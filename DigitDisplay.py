@@ -1036,7 +1036,7 @@ class DigitDisplay:
             self.hour_steppers[clk_index].move_to(int(pos_h_frac * self.steps_full_rev), 0)
             self.minute_steppers[clk_index].move_to(int(pos_m_frac * self.steps_full_rev), 0)
 
-            await asyncio.sleep(0.2)
+            await asyncio.sleep(0.3)
 
         self.clockclock.movement_done_event.clear()
         await self.clockclock.movement_done_event.wait()
@@ -1047,7 +1047,7 @@ class DigitDisplay:
             self.hour_steppers[clk_index].move_to(new_positions_h[clk_index], 0)
             self.minute_steppers[clk_index].move_to(new_positions_m[clk_index], 0)
 
-            await asyncio.sleep(0.2)
+            await asyncio.sleep(0.3)
 
     async def new_pose_game_of_life(self, new_positions_h, new_positions_m):
         """Animation: Runs Conway's Game of Life."""
